@@ -1,0 +1,120 @@
+{"id": "F001", "text": "What's the average CST across all prior visits?"}
+{"id": "F002", "text": "When did BCVA first reach at least 5 letters above baseline?"}
+{"id": "F003", "text": "Show me the bad visit."}
+{"id": "F004", "text": "Which prior visit showed the biggest jump in CST from the visit before it?"}
+{"id": "F005", "text": "When was subretinal fluid last visible on the OCT?"}
+{"id": "F006", "text": "When was the retina last thicker than it is today?"}
+{"id": "F007", "text": "Show me the visit from six months ago."}
+{"id": "F008", "text": "Which earlier visit had the biggest drop in BCVA from the prior visit?"}
+{"id": "F009", "text": "When was vision last as good as it is now?"}
+{"id": "F010", "text": "Which earlier visit had the highest FA leakage index?"}
+{"id": "F011", "text": "Show me the visit from one year ago."}
+{"id": "F012", "text": "Is BCVA trending up or down over the last five visits?"}
+{"id": "F013", "text": "Most recent prior visit with BCVA ≥ current?"}
+{"id": "F014", "text": "How many anti-VEGF injections had this eye received before today?"}
+{"id": "F015", "text": "pull up visit w/ max interval CST increase"}
+{"id": "F016", "text": "Pull the exam from ~26 weeks back."}
+{"id": "F017", "text": "When was it worse?"}
+{"id": "F018", "text": "What did this eye look like about 52 weeks before today's visit?"}
+{"id": "F019", "text": "When did this eye lose the most letters between back-to-back visits?"}
+{"id": "F020", "text": "How many visits has CST been above 300 µm?"}
+{"id": "F021", "text": "Most recent prior visit with CST greater than current?"}
+{"id": "F022", "text": "First visit with a one-line gain from baseline?"}
+{"id": "F023", "text": "Show me the visit with the most fluorescein leakage."}
+{"id": "F024", "text": "Show me the visit where the ellipsoid zone looked most disrupted on the scan."}
+{"id": "F025", "text": "Show the visit with the worst visit-over-visit acuity decline."}
+{"id": "F026", "text": "When was angiographic leakage at its peak for this eye?"}
+{"id": "F027", "text": "How many weeks have passed since the baseline visit?"}
+{"id": "F028", "text": "Find the last visit where my eyesight was at least as good as today."}
+{"id": "F029", "text": "When did the retina thicken the most between two consecutive appointments before today?"}
+{"id": "F030", "text": "Pull up the visit from before the change."}
+{"id": "F031", "text": "Which visit came right after the last injection?"}
+{"id": "F032", "text": "At which appointment did my vision first improve by a full line on the eye chart compared with my first visit?"}
+{"id": "F033", "text": "Pull up the exam from roughly 12 months back."}
+{"id": "F034", "text": "Find the last visit where central subfield thickness exceeded today's value."}
+{"id": "F035", "text": "What was the CST about half a year before today?"}
+{"id": "F036", "text": "At which visit did intraretinal cysts first appear on the B-scan?"}
+{"id": "F037", "text": "Find the visit where it changed by more than the threshold."}
+{"id": "F038", "text": "Bring up the visit closest to a year before this one."}
+{"id": "F039", "text": "Which visit was the last time my retina was thicker than now?"}
+{"id": "F040", "text": "Calculate the slope of CST change per month since baseline."}
+{"id": "F041", "text": "At which previous appointment did my vision fall the most compared with the appointment before it?"}
+{"id": "F042", "text": "Latest earlier visit with a letter score equal to or better than today's."}
+{"id": "F043", "text": "Show me the earlier exam where central subfield thickness went up by the largest amount relative to the exam that preceded it."}
+{"id": "F044", "text": "When did the DRSS level improve by two steps?"}
+{"id": "F045", "text": "Retrieve the visit closest to 6 mo prior."}
+{"id": "F046", "text": "Pull the visit with max leakage on FA."}
+{"id": "F047", "text": "Find the earliest post-baseline visit where acuity was ≥5 ETDRS letters better than at baseline."}
+{"id": "F048", "text": "Based on the history so far, what BCVA should we expect at the next visit?"}
+{"id": "F049", "text": "How did my eye measure at the check-up roughly six months ago?"}
+{"id": "F050", "text": "Largest visit-to-visit CST increase in this eye's history - which visit was that?"}
+{"id": "F051", "text": "Which prior scan had the largest pigment epithelial detachment?"}
+{"id": "F052", "text": "When was the first time this eye gained one line or more over its starting vision?"}
+{"id": "F053", "text": "List every visit where vision was below 60 letters."}
+{"id": "F054", "text": "At which past appointment did the dye test show the most leaking?"}
+{"id": "F055", "text": "Which visit was the best one?"}
+{"id": "F056", "text": "last time VA was this good or better"}
+{"id": "F057", "text": "Largest single-interval ETDRS letter loss -> pull that visit"}
+{"id": "F058", "text": "I want to compare with last year's visit - can you retrieve it?"}
+{"id": "F059", "text": "Pull the latest earlier visit with a higher CST than this one."}
+{"id": "F060", "text": "Compare this eye's CST with the fellow eye at the same visit."}
+{"id": "F061", "text": "Going backwards from today, what's the first visit with a thicker CST?"}
+{"id": "F062", "text": "I want to see the exam where visual acuity dropped most sharply relative to the preceding exam."}
+{"id": "F063", "text": "Show me the most recent exam where best-corrected acuity matched or exceeded the current value."}
+{"id": "F064", "text": "What was the patient's HbA1c at the visit with the highest CST?"}
+{"id": "F065", "text": "What's the weather going to be like tomorrow?"}
+{"id": "F066", "text": "Before I decide on retreatment I'd like to look at the visit where the edema spiked the most compared to the visit right before it. Which one was that?"}
+{"id": "F067", "text": "I'd like a side-by-side with the visit from half a year earlier."}
+{"id": "F068", "text": "Pull the first follow-up where the letter score beat baseline by five or more."}
+{"id": "F069", "text": "median letter score over the first year?"}
+{"id": "F070", "text": "How was my vision at my appointment a year ago?"}
+{"id": "F071", "text": "Find the visit where the fluorescein angiography leakage score was greatest."}
+{"id": "F072", "text": "Find the visit where hyperreflective foci were most numerous."}
+{"id": "F073", "text": "visit ~1 yr prior"}
+{"id": "F074", "text": "For how long has CST stayed below 250 microns without interruption?"}
+{"id": "F075", "text": "Find the visit approximately twenty-six weeks before this one."}
+{"id": "F076", "text": "peak FA leakage visit?"}
+{"id": "F077", "text": "Going back from today, which is the first visit with BCVA at least as high as now?"}
+{"id": "F078", "text": "Find the past visit with the greatest decrease in best-corrected acuity since the visit immediately prior."}
+{"id": "F079", "text": "last time CST > current"}
+{"id": "F080", "text": "Can you recommend a good place to park near the eye clinic?"}
+{"id": "F081", "text": "At what visit was the patient switched from ranibizumab to aflibercept?"}
+{"id": "F082", "text": "Greatest single-step rise in central thickness: which visit?"}
+{"id": "F083", "text": "How soon did we first see a 1-line improvement vs. BL - which visit?"}
+{"id": "F084", "text": "Did the vitreomacular traction seen on today's image exist at earlier visits?"}
+{"id": "F085", "text": "How variable has central thickness been? Give me the standard deviation across visits."}
+{"id": "F086", "text": "Show me the first visit after the initial one where best-corrected vision was up at least five letters from the start."}
+{"id": "F087", "text": "When did I last see this well, or better?"}
+{"id": "F088", "text": "Compare it with that other one."}
+{"id": "F089", "text": "biggest VA dip between consecutive visits?"}
+{"id": "F090", "text": "When was the diabetic retinopathy severity last as bad as it is now?"}
+{"id": "F091", "text": "Find the visit approximately fifty-two weeks earlier than the current one."}
+{"id": "F092", "text": "Show me all the visits where CST went up while BCVA went down."}
+{"id": "F093", "text": "Before switching agents I want to review the visit where leakage on angiography was worst. Which was it?"}
+{"id": "F094", "text": "At which past appointment did my swelling measurement go up the most since the appointment before?"}
+{"id": "F095", "text": "BCVA at the 6-month-prior visit?"}
+{"id": "F096", "text": "I need the most recent exam at which the macula measured thicker than at this visit."}
+{"id": "F097", "text": "Retrieve the prior visit with the largest leakage index value."}
+{"id": "F098", "text": "Show me the closest previous visit where thickness was above the current reading."}
+{"id": "F099", "text": "Retrieve the visit about a year before today so I can do a year-over-year CST comparison."}
+{"id": "F100", "text": "Retrieve the visit with the biggest positive CST delta vs. its prior visit."}
+{"id": "F101", "text": "Is there a correlation between thickness and acuity in this eye?"}
+{"id": "F102", "text": "earliest +5 letter BCVA gain over baseline"}
+{"id": "F103", "text": "Was the patient over 65 at the baseline visit?"}
+{"id": "F104", "text": "For the case summary, identify the visit where BCVA declined by the largest number of letters from the previous visit and retrieve it."}
+{"id": "F105", "text": "Show me the visit when things got bigger."}
+{"id": "F106", "text": "For counseling purposes, pull the latest preceding visit where the ETDRS score was no lower than the present one."}
+{"id": "F107", "text": "Can you fetch whatever visit falls about 26 wks before the current one so I can compare thickness?"}
+{"id": "F108", "text": "Count the number of visits at which BCVA improved compared with the preceding visit."}
+{"id": "F109", "text": "When did DRIL (disorganization of the retinal inner layers) first show up on OCT?"}
+{"id": "F110", "text": "Go back roughly half a year from this appointment and show me that visit."}
+{"id": "F111", "text": "What's the average gap, in weeks, between this eye's visits?"}
+{"id": "F112", "text": "When did the numbers last look like this?"}
+{"id": "F113", "text": "I'm writing up the response timeline; which visit first documented a gain of at least one ETDRS line (5 letters) over the baseline acuity?"}
+{"id": "F114", "text": "Of all previous visits, which one had the steepest rise in central subfield thickness, in microns, from the visit just before it?"}
+{"id": "F115", "text": "Which visit so far had the maximum leakage on the fluorescein angiogram?"}
+{"id": "F116", "text": "To judge whether we're back near an old peak, retrieve the latest preceding visit whose CST was strictly higher than today's."}
+{"id": "F117", "text": "Which previous appointment most recently had acuity at or above today's level?"}
+{"id": "F118", "text": "What were the CST and BCVA at the study visit one year before this one?"}
+{"id": "F119", "text": "Which follow-up showed the steepest fall in letter score from one visit to the next?"}
+{"id": "F120", "text": "Show the visits where systolic blood pressure was recorded above 140."}

@@ -1,0 +1,21 @@
+{
+  "encoder": "dinov2_vits14",
+  "dim": 384,
+  "n": 96,
+  "device": "cpu",
+  "seconds": 19.06,
+  "torch": "2.14.1+cpu",
+  "torchvision": "0.29.1+cpu",
+  "python": "3.12.10",
+  "in_colab": false,
+  "determinism_max_abs_diff": 0.0,
+  "neighbour_stats": {
+    "k": 5,
+    "same_eye_at_k": 0.6395833333333334,
+    "same_eye_chance": 0.11578947368421051,
+    "same_visit_at_1": 0.10416666666666667,
+    "same_visit_chance_at_1": 0.021052631578947375,
+    "same_trial_at_k": 0.8250000000000001,
+    "same_trial_chance": 0.4947368421052633
+  }
+}

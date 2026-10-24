@@ -1,0 +1,17 @@
+24465bf0c64ff1f71c72e85daa9acc7e *results/v2/instances_v2.csv
+ed17731fcc11a211c58d798feeb399aa *results/v2/insufficient_evidence.csv
+e3fdb08e3479da1322c28bf087066270 *results/v2/last_injection_structured_lookup.csv
+1ad8bc14c7fbea147d8dc504c1b6749e *results/v2/parser_behaviour_v1_on_v2_paraphrases.csv
+b50dc2ae3ce25a102b7113fdc0d6bd4c *results/v2/per_instance_metrics_v2.csv
+4c7a38b0f02250f03b486718958eaa17 *results/v2/run_config_v2.json
+dd8b62a9575a32c666f9f5d6530d356d *results/v2/summary_primary_test.csv
+08cf5b3680931e43aa4eff7902d8daf0 *results/v2/summary_prime_all_patients_EXPLORATORY.csv
+ecab8e3b99ff12bc1318d1a18633b294 *results/v2/summary_secondary_test.csv
+9d4559e7048232e783513e26cfc4995b *reports/RETRIEVAL_REPORT.md
+a6a3452b708912a8d51f978f0a479998 *reports/RETRIEVAL_REPORT_V2.md
+afa419ce2aa2bdb55d93a71eadf52849 *tests/data/paraphrases_v2_dev.jsonl
+3b83c67f857ba3458fb441cda7c540b7 *tests/data/paraphrases_v2_locked.jsonl
+ce626dc27423d0c711d366dee98cc11f *tests/data/paraphrases_v2_raw.jsonl
+dffcbfad48796ab1c096dd78aff67f18 *tests/data/paraphrases_v2_manifest.json
+349f9bed037026d360ae25ad6d235748 *results/v1_snapshot/MANIFEST.md5
+0250504cad68e37afdb5ad46918bc07e *docs/PHASE1_V2_QUESTION_SPEC.md

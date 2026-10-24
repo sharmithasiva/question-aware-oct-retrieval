@@ -1,0 +1,11 @@
+# Python / tooling caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Rebuildable bundle (python phase2/make_colab_bundle.py)
+phase2/dist/
+
+# Blinded annotation keys: must not be visible to annotators (protocol §4)
+phase2/annotations/keys/

@@ -1,0 +1,9 @@
+{
+  "encoder": "dinov2_vits14",
+  "subset": "phase2/data/atlas_fullhist",
+  "n": 73,
+  "dim": 384,
+  "device": "cpu",
+  "seconds": 15.48,
+  "torch": "2.14.1+cpu"
+}

@@ -1,0 +1,89 @@
+set,qtype,text,task,operation,target,direction,comparator,recency,offset_weeks,threshold,reason,exact,route_ok
+v2_dev,first_vision_gain_1line,What was the first visit after baseline where BCVA was up at least 5 letters from baseline?,retrieve,first_threshold_crossing,bcva,increase,,,,5.0,,True,True
+v2_dev,first_vision_gain_1line,At which appointment could I first read at least one more line on the chart than at my first visit?,retrieve,first_threshold_crossing,bcva,increase,,,,5.0,,True,True
+v2_dev,first_vision_gain_1line,Find the earliest post-baseline exam reaching a one-line improvement from the initial BCVA.,retrieve,first_threshold_crossing,bcva,increase,,,,5.0,,True,True
+v2_dev,first_vision_gain_1line,How soon did we first see a gain of at least five letters relative to the first visit — which visit was it?,retrieve,first_threshold_crossing,bcva,increase,,,,5.0,,True,True
+v2_dev,first_vision_gain_1line,Earliest visit where VA was 1 line better than at baseline.,retrieve,first_threshold_crossing,bcva,increase,,,,5.0,,True,True
+v2_dev,largest_bcva_drop,Biggest visit-to-visit VA decline — when?,retrieve,max_consecutive_change,bcva,decrease,,,,,,True,True
+v2_dev,largest_bcva_drop,Identify the prior exam showing the steepest single-step fall in ETDRS letter score.,retrieve,max_consecutive_change,bcva,decrease,,,,,,True,True
+v2_dev,largest_bcva_drop,"So I can compare with today, find the follow-up where acuity fell hardest relative to the preceding visit.",retrieve,max_consecutive_change,bcva,decrease,,,,,,True,True
+v2_dev,largest_bcva_drop,"Across this eye's history, at which visit was the sharpest interval drop in best-corrected vision recorded?",retrieve,max_consecutive_change,bcva,decrease,,,,,,True,True
+v2_dev,largest_bcva_drop,Show me the appointment where I lost the most vision since the previous check.,retrieve,max_consecutive_change,bcva,decrease,,,,,,True,True
+v2_dev,largest_cst_rise,Which prior visit showed the biggest jump in central subfield thickness compared with the visit right before it?,retrieve,max_consecutive_change,cst,increase,,,,,,True,True
+v2_dev,largest_cst_rise,Find the earlier exam with the largest visit-over-visit increase in central retinal thickness.,retrieve,max_consecutive_change,cst,increase,,,,,,True,True
+v2_dev,largest_cst_rise,"Looking back over this eye's history, which visit had the steepest increase in CST from the prior one?",retrieve,max_consecutive_change,cst,increase,,,,,,True,True
+v2_dev,largest_cst_rise,I want to compare today against the worst interval thickening — the visit with the maximum consecutive CST gain.,retrieve,max_consecutive_change,cst,increase,,,,,,True,True
+v2_dev,largest_cst_rise,Max sequential rise in OCT central subfield thickness: which earlier visit was that?,retrieve,max_consecutive_change,cst,increase,,,,,,True,True
+v2_dev,last_injection,Pull up the most recent visit where this eye got an intravitreal injection.,unavailable_variable,,injection,,,,,,"requires 'injection', which is not in the retriever memory",True,True
+v2_dev,last_injection,Last anti-VEGF shot — which visit?,unavailable_variable,,injection,,,,,,"requires 'injection', which is not in the retriever memory",True,True
+v2_dev,last_injection,Compare today with the visit of the most recent intravitreal treatment.,unavailable_variable,,injection,,,,,,"requires 'injection', which is not in the retriever memory",True,True
+v2_dev,last_injection,Show me the last appointment where the eye was injected.,unavailable_variable,,injection,,,,,,"requires 'injection', which is not in the retriever memory",True,True
+v2_dev,last_injection,Date of the previous intravitreal dose for this eye?,unavailable_variable,,injection,,,,,,"requires 'injection', which is not in the retriever memory",True,True
+v2_dev,last_thicker_than_now,Most recent prior visit with CST above today's value?,retrieve,compare_to_current,cst,,gt,last,,,,True,True
+v2_dev,last_thicker_than_now,Pull up the latest earlier visit where central thickness exceeded the current measurement.,retrieve,compare_to_current,cst,,gt,last,,,,True,True
+v2_dev,last_thicker_than_now,"Going backwards from today, which is the first visit where CST was higher than now?",retrieve,compare_to_current,cst,,gt,last,,,,True,True
+v2_dev,last_thicker_than_now,Find the most recent exam at which central subfield thickness was greater than at this visit.,retrieve,compare_to_current,cst,,gt,last,,,,True,True
+v2_dev,last_thicker_than_now,Last visit thicker than current?,retrieve,compare_to_current,cst,,gt,last,,,,True,True
+v2_dev,last_vision_as_good,When was the last time vision was at least as good as it is today?,retrieve,compare_to_current,bcva,,ge,last,,,,True,True
+v2_dev,last_vision_as_good,Most recent prior visit with BCVA greater than or equal to today's?,retrieve,compare_to_current,bcva,,ge,last,,,,True,True
+v2_dev,last_vision_as_good,Pull up the latest earlier visit where acuity matched or beat the current score.,retrieve,compare_to_current,bcva,,ge,last,,,,True,True
+v2_dev,last_vision_as_good,"Going back from today, which is the first visit with VA equal to or better than now?",retrieve,compare_to_current,bcva,,ge,last,,,,True,True
+v2_dev,last_vision_as_good,Which visit was the most recent one where my eyesight was at least this good?,retrieve,compare_to_current,bcva,,ge,last,,,,True,True
+v2_dev,max_leakage,Pull up the visit with the highest FA leakage index so I can compare.,unavailable_variable,,leakage_index,,,,,,"requires 'leakage_index', which is not in the retriever memory",True,True
+v2_dev,max_leakage,When was the dye leakage on the angiogram at its worst?,unavailable_variable,,leakage_index,,,,,,"requires 'leakage_index', which is not in the retriever memory",True,True
+v2_dev,max_leakage,Find the prior exam where angiographic leakage was greatest.,unavailable_variable,,leakage_index,,,,,,"requires 'leakage_index', which is not in the retriever memory",True,True
+v2_dev,max_leakage,"Across all previous angiograms for this eye, which visit recorded the top leakage score?",unavailable_variable,,leakage_index,,,,,,"requires 'leakage_index', which is not in the retriever memory",True,True
+v2_dev,max_leakage,Which past visit had the highest leakage index?,unavailable_variable,,leakage_index,,,,,,"requires 'leakage_index', which is not in the retriever memory",True,True
+v2_dev,one_year_ago,Show me the visit from about a year ago.,retrieve,time_offset,,,,,52.0,,,True,True
+v2_dev,one_year_ago,Pull up the exam from approximately one year earlier so I can see the annual change.,retrieve,time_offset,,,,,52.0,,,True,True
+v2_dev,one_year_ago,What were my results at the appointment around this time last year?,retrieve,time_offset,,,,,52.0,,,True,True
+v2_dev,one_year_ago,Which prior visit falls closest to one year before the current one?,retrieve,time_offset,,,,,52.0,,,True,True
+v2_dev,one_year_ago,"1-yr lookback visit, please.",retrieve,time_offset,,,,,52.0,,,True,True
+v2_dev,six_months_ago,Compare with the 26-weeks-prior visit.,retrieve,time_offset,,,,,26.0,,,True,True
+v2_dev,six_months_ago,Pull up the exam from roughly six months earlier so I can compare it with today.,retrieve,time_offset,,,,,26.0,,,True,True
+v2_dev,six_months_ago,How was my eye at the check-up about half a year back?,retrieve,time_offset,,,,,26.0,,,True,True
+v2_dev,six_months_ago,Find the follow-up from approximately 26 weeks prior.,retrieve,time_offset,,,,,26.0,,,True,True
+v2_dev,six_months_ago,I want to see how this eye has changed over the last six months — get the visit from then.,retrieve,time_offset,,,,,26.0,,,True,True
+v2_dev,unsupported,When did the subretinal fluid first fully resolve?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,When was the ellipsoid zone last intact under the fovea?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,At which visit did hyperreflective foci first appear?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,Show me the visit where the epiretinal membrane was first visible.,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,Which visit had the most severe diabetic retinopathy grade?,unavailable_variable,,drss_level,,,,,,"requires 'drss_level', which is not in the retriever memory",True,True
+v2_dev,unsupported,When did the pigment epithelial detachment get biggest?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,Pull up the visit where the foveal contour was last normal.,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,Show the visit where the outer retinal atrophy began.,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,When was intraretinal fluid last absent in the parafovea?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v2_dev,unsupported,Which visit had the worst-looking scan overall in terms of structural damage?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v1_template,baseline_cst,How has the central subfield thickness changed since baseline?,retrieve,anchor_baseline,cst,,,,,,,True,True
+v1_template,baseline_cst,"Compared with the first visit, is the CST higher or lower now?",retrieve,anchor_baseline,cst,,,,,,,True,True
+v1_template,baseline_cst,Has retinal thickness improved relative to the initial visit?,retrieve,anchor_baseline,cst,,,,,,,True,True
+v1_template,baseline_bcva,How has visual acuity changed since baseline?,retrieve,anchor_baseline,bcva,,,,,,,True,True
+v1_template,baseline_bcva,"Compared with the first visit, is BCVA better or worse now?",retrieve,anchor_baseline,bcva,,,,,,,True,True
+v1_template,baseline_bcva,Has vision improved relative to the initial visit?,retrieve,anchor_baseline,bcva,,,,,,,True,True
+v1_template,previous_cst,Has the CST changed since the previous visit?,retrieve,anchor_previous,cst,,,,,,,True,True
+v1_template,previous_cst,"Compared with the last visit, is the retina thicker or thinner?",retrieve,anchor_previous,cst,,,,,,,True,True
+v1_template,previous_cst,How does central thickness compare with the most recent prior visit?,retrieve,anchor_previous,cst,,,,,,,True,True
+v1_template,worst_edema,"Compared with when the edema was worst, has it improved?",retrieve,extremum,cst,max,,,,,,True,True
+v1_template,worst_edema,"Which visit had the highest recorded CST, and how does today compare?",retrieve,extremum,cst,max,,,,,,True,True
+v1_template,worst_edema,Is the retina less swollen than at its peak thickness?,retrieve,extremum,cst,max,,,,,,True,True
+v1_template,best_anatomy,"Compared with the visit with the lowest CST, has thickness increased?",retrieve,extremum,cst,min,,,,,,True,True
+v1_template,best_anatomy,How does current thickness compare with when the retina was thinnest?,retrieve,extremum,cst,min,,,,,,True,True
+v1_template,best_anatomy,Is the edema back above its best recorded level?,retrieve,extremum,cst,min,,,,,,True,True
+v1_template,worst_vision,"Compared with when vision was worst, has it recovered?",retrieve,extremum,bcva,min,,,,,,True,True
+v1_template,worst_vision,"Which visit had the lowest BCVA, and is acuity better now?",retrieve,extremum,bcva,min,,,,,,True,True
+v1_template,worst_vision,How does visual acuity compare with its poorest recorded value?,retrieve,extremum,bcva,min,,,,,,True,True
+v1_template,best_vision,"Compared with the best vision recorded, has acuity dropped?",retrieve,extremum,bcva,max,,,,,,True,True
+v1_template,best_vision,"Which visit had the highest BCVA, and how does today compare?",retrieve,extremum,bcva,max,,,,,,True,True
+v1_template,best_vision,Is visual acuity as good as at its peak?,retrieve,extremum,bcva,max,,,,,,True,True
+v1_template,similar_cst,When was the CST most similar to today's measurement?,retrieve,closest_to_current,cst,,,,,,,True,True
+v1_template,similar_cst,Find the prior visit with the closest central thickness to now.,retrieve,closest_to_current,cst,,,,,,,True,True
+v1_template,similar_cst,At which earlier visit was retinal thickness comparable to the current scan?,retrieve,closest_to_current,cst,,,,,,,True,True
+v1_heldout,,Is the macular oedema better than at its most severe?,retrieve,extremum,cst,max,,,,,,True,True
+v1_heldout,,"Since the screening visit, has the thickness gone down?",retrieve,anchor_baseline,cst,,,,,,,True,True
+v1_heldout,,Has the patient's vision deteriorated since last time?,retrieve,anchor_previous,bcva,,,,,,,True,True
+v1_heldout,,Is the BCVA now below its maximum?,retrieve,extremum,bcva,max,,,,,,True,True
+v1_heldout,,Which earlier visit had a central subfield thickness closest to the current one?,retrieve,closest_to_current,cst,,,,,,,True,True
+v1_heldout,,"Compared with the thickest the retina has been, is it improving?",retrieve,extremum,cst,max,,,,,,True,True
+v1_heldout,,How many letters has the patient gained from the start of treatment?,retrieve,anchor_baseline,bcva,,,,,,,True,True
+v1_heldout,,How has the retinal structure changed?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True
+v1_heldout,,Has the intraretinal fluid resolved compared with the earlier scans?,unsupported_image,,,,,,,,requires OCT image findings; no metadata answer,True,True

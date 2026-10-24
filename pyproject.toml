@@ -1,0 +1,13 @@
+[project]
+name = "oct-retrieval"
+version = "0.1.0"
+description = "Question-aware episodic retrieval over longitudinal OLIVES OCT visits (Phase 1: metadata only)"
+requires-python = ">=3.10"
+dependencies = ["pandas>=2.0", "numpy>=1.24", "openpyxl>=3.1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

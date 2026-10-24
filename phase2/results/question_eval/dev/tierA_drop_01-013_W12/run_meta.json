@@ -1,0 +1,26 @@
+{
+  "set": "dev",
+  "tier": "A",
+  "rel_threshold": 1.0,
+  "drop_visits": [
+    "01-013_W12"
+  ],
+  "primary_metric": "mrr",
+  "label_source": [
+    "metadata_rule:ground_truth_v2.answer_key",
+    "metadata_rule:questions.relevant_indices"
+  ],
+  "labels_present": true,
+  "n_queries": 270,
+  "status_counts": {
+    "evaluated": 267,
+    "no_relevant_candidate": 3
+  },
+  "encoders_with_embeddings": [
+    "dinov2_vits14",
+    "resnet50"
+  ],
+  "rrf_k": 60,
+  "min_candidates": 6,
+  "protocol": "phase2/QUESTION_EVAL_PROTOCOL.md v0.1"
+}

@@ -1,0 +1,111 @@
+set,qtype,text,target,intent,direction,evidence
+dev,first_vision_gain_1line,What was the first visit after baseline where BCVA was up at least 5 letters from baseline?,bcva,extreme,min,metadata
+dev,first_vision_gain_1line,At which appointment could I first read at least one more line on the chart than at my first visit?,,unknown,,metadata
+dev,first_vision_gain_1line,Find the earliest post-baseline exam reaching a one-line improvement from the initial BCVA.,bcva,baseline,,metadata
+dev,first_vision_gain_1line,How soon did we first see a gain of at least five letters relative to the first visit — which visit was it?,bcva,extreme,min,metadata
+dev,first_vision_gain_1line,Earliest visit where VA was 1 line better than at baseline.,,unknown,,metadata
+dev,largest_bcva_drop,Biggest visit-to-visit VA decline — when?,,unknown,,metadata
+dev,largest_bcva_drop,Identify the prior exam showing the steepest single-step fall in ETDRS letter score.,bcva,unknown,,metadata
+dev,largest_bcva_drop,"So I can compare with today, find the follow-up where acuity fell hardest relative to the preceding visit.",bcva,unknown,,metadata
+dev,largest_bcva_drop,"Across this eye's history, at which visit was the sharpest interval drop in best-corrected vision recorded?",bcva,extreme,max,metadata
+dev,largest_bcva_drop,Show me the appointment where I lost the most vision since the previous check.,bcva,previous,,metadata
+dev,largest_cst_rise,Which prior visit showed the biggest jump in central subfield thickness compared with the visit right before it?,cst,previous,,metadata
+dev,largest_cst_rise,Find the earlier exam with the largest visit-over-visit increase in central retinal thickness.,cst,unknown,,metadata
+dev,largest_cst_rise,"Looking back over this eye's history, which visit had the steepest increase in CST from the prior one?",cst,unknown,,metadata
+dev,largest_cst_rise,I want to compare today against the worst interval thickening — the visit with the maximum consecutive CST gain.,cst,extreme,max,metadata
+dev,largest_cst_rise,Max sequential rise in OCT central subfield thickness: which earlier visit was that?,cst,extreme,max,metadata
+dev,last_injection,Pull up the most recent visit where this eye got an intravitreal injection.,,unknown,,metadata
+dev,last_injection,Last anti-VEGF shot — which visit?,,unknown,,metadata
+dev,last_injection,Compare today with the visit of the most recent intravitreal treatment.,,unknown,,metadata
+dev,last_injection,Show me the last appointment where the eye was injected.,,unknown,,metadata
+dev,last_injection,Date of the previous intravitreal dose for this eye?,,unknown,,metadata
+dev,last_thicker_than_now,Most recent prior visit with CST above today's value?,cst,previous,,metadata
+dev,last_thicker_than_now,Pull up the latest earlier visit where central thickness exceeded the current measurement.,cst,unknown,,metadata
+dev,last_thicker_than_now,"Going backwards from today, which is the first visit where CST was higher than now?",cst,baseline,,metadata
+dev,last_thicker_than_now,Find the most recent exam at which central subfield thickness was greater than at this visit.,cst,previous,,metadata
+dev,last_thicker_than_now,Last visit thicker than current?,cst,previous,,metadata
+dev,last_vision_as_good,When was the last time vision was at least as good as it is today?,bcva,extreme,min,metadata
+dev,last_vision_as_good,Most recent prior visit with BCVA greater than or equal to today's?,bcva,previous,,metadata
+dev,last_vision_as_good,Pull up the latest earlier visit where acuity matched or beat the current score.,bcva,unknown,,metadata
+dev,last_vision_as_good,"Going back from today, which is the first visit with VA equal to or better than now?",,unknown,,metadata
+dev,last_vision_as_good,Which visit was the most recent one where my eyesight was at least this good?,,unknown,,metadata
+dev,max_leakage,Pull up the visit with the highest FA leakage index so I can compare.,,unknown,,metadata
+dev,max_leakage,When was the dye leakage on the angiogram at its worst?,,unknown,,metadata
+dev,max_leakage,Find the prior exam where angiographic leakage was greatest.,,unknown,,metadata
+dev,max_leakage,"Across all previous angiograms for this eye, which visit recorded the top leakage score?",,unknown,,metadata
+dev,max_leakage,Which past visit had the highest leakage index?,,unknown,,metadata
+dev,one_year_ago,Show me the visit from about a year ago.,,unknown,,metadata
+dev,one_year_ago,Pull up the exam from approximately one year earlier so I can see the annual change.,bcva,unknown,,metadata
+dev,one_year_ago,What were my results at the appointment around this time last year?,,unknown,,metadata
+dev,one_year_ago,Which prior visit falls closest to one year before the current one?,,unknown,,metadata
+dev,one_year_ago,"1-yr lookback visit, please.",,unknown,,metadata
+dev,six_months_ago,Compare with the 26-weeks-prior visit.,,unknown,,metadata
+dev,six_months_ago,Pull up the exam from roughly six months earlier so I can compare it with today.,,unknown,,metadata
+dev,six_months_ago,How was my eye at the check-up about half a year back?,,unknown,,metadata
+dev,six_months_ago,Find the follow-up from approximately 26 weeks prior.,,unknown,,metadata
+dev,six_months_ago,I want to see how this eye has changed over the last six months — get the visit from then.,bcva,unknown,,metadata
+dev,unsupported,When did the subretinal fluid first fully resolve?,,unknown,,image
+dev,unsupported,When was the ellipsoid zone last intact under the fovea?,,unknown,,metadata
+dev,unsupported,At which visit did hyperreflective foci first appear?,,unknown,,image
+dev,unsupported,Show me the visit where the epiretinal membrane was first visible.,,unknown,,metadata
+dev,unsupported,Which visit had the most severe diabetic retinopathy grade?,,unknown,,metadata
+dev,unsupported,When did the pigment epithelial detachment get biggest?,,unknown,,metadata
+dev,unsupported,Pull up the visit where the foveal contour was last normal.,,unknown,,metadata
+dev,unsupported,Show the visit where the outer retinal atrophy began.,,unknown,,metadata
+dev,unsupported,When was intraretinal fluid last absent in the parafovea?,,unknown,,image
+dev,unsupported,Which visit had the worst-looking scan overall in terms of structural damage?,,unknown,,image
+locked,first_vision_gain_1line,When did vision first improve by one line or more compared with the starting visit?,bcva,unknown,,metadata
+locked,first_vision_gain_1line,First visit with a >=1-line gain vs baseline?,,unknown,,metadata
+locked,first_vision_gain_1line,Pull up the earliest follow-up where acuity had gained 5 or more ETDRS letters over baseline so I can compare.,bcva,baseline,,metadata
+locked,first_vision_gain_1line,Which visit was the first one where my vision was at least a line better than when I started treatment?,bcva,extreme,min,metadata
+locked,first_vision_gain_1line,Show the first follow-up at which best-corrected acuity exceeded the baseline score by 5 letters or more.,bcva,extreme,max,metadata
+locked,largest_bcva_drop,Which earlier visit had the largest loss of letters compared with the visit just before it?,bcva,unknown,,metadata
+locked,largest_bcva_drop,Pull up the visit where BCVA dropped the most from one visit to the next.,bcva,unknown,,metadata
+locked,largest_bcva_drop,When did my eyesight get worse by the biggest amount between two consecutive appointments?,,unknown,,metadata
+locked,largest_bcva_drop,Max consecutive BCVA loss — which visit?,bcva,extreme,max,metadata
+locked,largest_bcva_drop,Which past visit marks the worst single-interval deterioration in letters read?,bcva,extreme,min,metadata
+locked,largest_cst_rise,Pull up the visit where CST went up the most from one visit to the next so I can compare it with today.,cst,unknown,,metadata
+locked,largest_cst_rise,Biggest single-interval CST increase — which visit?,cst,unknown,,metadata
+locked,largest_cst_rise,When did the retina thicken the most between two back-to-back appointments?,cst,unknown,,metadata
+locked,largest_cst_rise,At which past visit did the swelling in the center of my retina go up the most since the previous check?,cst,previous,,metadata
+locked,largest_cst_rise,Show me the follow-up where central thickness spiked hardest relative to the preceding visit.,cst,unknown,,metadata
+locked,last_injection,When was the last injection?,,unknown,,metadata
+locked,last_injection,When did I last get a shot in this eye?,,unknown,,metadata
+locked,last_injection,Find the most recent prior visit at which an intravitreal injection was given.,,unknown,,metadata
+locked,last_injection,Which earlier visit was the latest one with an IVT?,,unknown,,metadata
+locked,last_injection,"Going back from today, which is the first visit where an injection was administered?",,unknown,,metadata
+locked,last_thicker_than_now,When was the last time the retina was thicker than it is today?,cst,previous,,metadata
+locked,last_thicker_than_now,When was my retina last more swollen than it is right now?,cst,unknown,,metadata
+locked,last_thicker_than_now,"So I can compare, show me the closest previous visit where the OCT thickness was higher than today's.",cst,similar,,metadata
+locked,last_thicker_than_now,How long ago was the macula last thicker than at today's scan — which visit?,cst,unknown,,metadata
+locked,last_thicker_than_now,Identify the latest prior follow-up with a central retinal thickness exceeding the present one.,cst,unknown,,metadata
+locked,last_vision_as_good,When could I last see this well or better?,bcva,unknown,,metadata
+locked,last_vision_as_good,Find the most recent exam where the letter score was no worse than at this visit.,bcva,previous,,metadata
+locked,last_vision_as_good,Last visit with vision as good as today?,bcva,previous,,metadata
+locked,last_vision_as_good,Show me the closest previous follow-up where best-corrected acuity was at or above the present level.,bcva,similar,,metadata
+locked,last_vision_as_good,Identify the latest prior visit whose ETDRS score was greater than or equal to the current one so I can compare.,,unknown,,metadata
+locked,max_leakage,Which earlier visit had the most leakage on fluorescein angiography?,,unknown,,metadata
+locked,max_leakage,Peak leakage visit?,,unknown,,metadata
+locked,max_leakage,At which visit did the FA show the maximum leakage?,,unknown,,metadata
+locked,max_leakage,Show me the time my blood vessels were leaking the most on the dye test.,,unknown,,metadata
+locked,max_leakage,Compare today against the follow-up with the most fluorescein leakage.,,unknown,,metadata
+locked,one_year_ago,How did this eye look roughly 52 weeks before today's visit?,,unknown,,metadata
+locked,one_year_ago,Compare with 12 months ago.,,unknown,,metadata
+locked,one_year_ago,I'd like to compare today's scan with the one taken about a year back.,,unknown,,metadata
+locked,one_year_ago,Find the follow-up from roughly 52 weeks prior to this visit.,,unknown,,metadata
+locked,one_year_ago,How has the eye changed since the visit a year ago?,,unknown,,metadata
+locked,six_months_ago,Show me the visit from about six months ago.,,unknown,,metadata
+locked,six_months_ago,What did things look like half a year before today?,,unknown,,image
+locked,six_months_ago,Which earlier visit is closest to 6 months before the current one?,,unknown,,metadata
+locked,six_months_ago,"6-mo lookback, please.",,unknown,,metadata
+locked,six_months_ago,Retrieve the visit dated around six months before this appointment.,,unknown,,metadata
+locked,unsupported,Which earlier visit had the most intraretinal cysts?,,unknown,,metadata
+locked,unsupported,Find the prior scan that looks most similar to today's OCT.,,unknown,,metadata
+locked,unsupported,When was the vitreomacular traction last present?,,unknown,,metadata
+locked,unsupported,When was the last time the scan was completely dry?,,unknown,,metadata
+locked,unsupported,At which visit was disorganization of the retinal inner layers first seen?,,unknown,,image
+locked,unsupported,When did the external limiting membrane become disrupted?,,unknown,,metadata
+locked,unsupported,Which past scan showed the largest area of subretinal hyperreflective material?,,unknown,,image
+locked,unsupported,When did the posterior vitreous detachment occur?,,unknown,,metadata
+locked,unsupported,When did the lamellar macular hole first show up?,,unknown,,metadata
+locked,unsupported,At which earlier visit was the choroid thickest under the fovea?,cst,extreme,max,metadata

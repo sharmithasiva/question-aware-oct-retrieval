@@ -1,0 +1,29 @@
+{
+  "source": "Retina OCT atlas (third-party index of OLIVES)",
+  "base_url": "https://retinaoct.com",
+  "api_version": "2",
+  "fetched_utc": "2026-10-24T10:23:54+00:00",
+  "image_format": "WebP derivative (downsampled by the atlas; not the original TIFF/PNG)",
+  "dataset": "OLIVES (Prabhushankar et al., NeurIPS Datasets and Benchmarks 2022), CC BY 4.0, doi:10.5281/zenodo.7105232",
+  "eyes": [
+    25,
+    30,
+    11,
+    24,
+    61,
+    67,
+    89,
+    72
+  ],
+  "visits_per_eye": 4,
+  "scans": [
+    12,
+    24,
+    36
+  ],
+  "n_kept": 96,
+  "n_rejected": 0,
+  "total_bytes": 4776154,
+  "verification": "each kept image: atlas path == visit_images.csv file_path of the expected visit; eye_id, patient_id, laterality, visit label, subject, BCVA and CST equal episodes.csv",
+  "caveat": "Pixel content is as served by the atlas. It has not been compared byte-for-byte with the official Zenodo archive."
+}

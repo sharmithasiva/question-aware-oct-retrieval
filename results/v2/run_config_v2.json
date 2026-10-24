@@ -1,0 +1,8 @@
+{
+  "seed": 42,
+  "alpha_frozen_from_v1": 0.05,
+  "bootstrap_reps": 1000,
+  "paraphrases_locked_sha256": "a87b9031bdb3f916b1c3dc5e74231b9274669cc7f6cb0d7233dcd225317488fd",
+  "n_instances": 8172,
+  "n_answerable": 6960
+}

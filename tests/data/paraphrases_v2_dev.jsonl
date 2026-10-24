@@ -1,0 +1,55 @@
+{"qtype": "first_vision_gain_1line", "text": "What was the first visit after baseline where BCVA was up at least 5 letters from baseline?"}
+{"qtype": "first_vision_gain_1line", "text": "At which appointment could I first read at least one more line on the chart than at my first visit?"}
+{"qtype": "first_vision_gain_1line", "text": "Find the earliest post-baseline exam reaching a one-line improvement from the initial BCVA."}
+{"qtype": "first_vision_gain_1line", "text": "How soon did we first see a gain of at least five letters relative to the first visit — which visit was it?"}
+{"qtype": "first_vision_gain_1line", "text": "Earliest visit where VA was 1 line better than at baseline."}
+{"qtype": "largest_bcva_drop", "text": "Biggest visit-to-visit VA decline — when?"}
+{"qtype": "largest_bcva_drop", "text": "Identify the prior exam showing the steepest single-step fall in ETDRS letter score."}
+{"qtype": "largest_bcva_drop", "text": "So I can compare with today, find the follow-up where acuity fell hardest relative to the preceding visit."}
+{"qtype": "largest_bcva_drop", "text": "Across this eye's history, at which visit was the sharpest interval drop in best-corrected vision recorded?"}
+{"qtype": "largest_bcva_drop", "text": "Show me the appointment where I lost the most vision since the previous check."}
+{"qtype": "largest_cst_rise", "text": "Which prior visit showed the biggest jump in central subfield thickness compared with the visit right before it?"}
+{"qtype": "largest_cst_rise", "text": "Find the earlier exam with the largest visit-over-visit increase in central retinal thickness."}
+{"qtype": "largest_cst_rise", "text": "Looking back over this eye's history, which visit had the steepest increase in CST from the prior one?"}
+{"qtype": "largest_cst_rise", "text": "I want to compare today against the worst interval thickening — the visit with the maximum consecutive CST gain."}
+{"qtype": "largest_cst_rise", "text": "Max sequential rise in OCT central subfield thickness: which earlier visit was that?"}
+{"qtype": "last_injection", "text": "Pull up the most recent visit where this eye got an intravitreal injection."}
+{"qtype": "last_injection", "text": "Last anti-VEGF shot — which visit?"}
+{"qtype": "last_injection", "text": "Compare today with the visit of the most recent intravitreal treatment."}
+{"qtype": "last_injection", "text": "Show me the last appointment where the eye was injected."}
+{"qtype": "last_injection", "text": "Date of the previous intravitreal dose for this eye?"}
+{"qtype": "last_thicker_than_now", "text": "Most recent prior visit with CST above today's value?"}
+{"qtype": "last_thicker_than_now", "text": "Pull up the latest earlier visit where central thickness exceeded the current measurement."}
+{"qtype": "last_thicker_than_now", "text": "Going backwards from today, which is the first visit where CST was higher than now?"}
+{"qtype": "last_thicker_than_now", "text": "Find the most recent exam at which central subfield thickness was greater than at this visit."}
+{"qtype": "last_thicker_than_now", "text": "Last visit thicker than current?"}
+{"qtype": "last_vision_as_good", "text": "When was the last time vision was at least as good as it is today?"}
+{"qtype": "last_vision_as_good", "text": "Most recent prior visit with BCVA greater than or equal to today's?"}
+{"qtype": "last_vision_as_good", "text": "Pull up the latest earlier visit where acuity matched or beat the current score."}
+{"qtype": "last_vision_as_good", "text": "Going back from today, which is the first visit with VA equal to or better than now?"}
+{"qtype": "last_vision_as_good", "text": "Which visit was the most recent one where my eyesight was at least this good?"}
+{"qtype": "max_leakage", "text": "Pull up the visit with the highest FA leakage index so I can compare."}
+{"qtype": "max_leakage", "text": "When was the dye leakage on the angiogram at its worst?"}
+{"qtype": "max_leakage", "text": "Find the prior exam where angiographic leakage was greatest."}
+{"qtype": "max_leakage", "text": "Across all previous angiograms for this eye, which visit recorded the top leakage score?"}
+{"qtype": "max_leakage", "text": "Which past visit had the highest leakage index?"}
+{"qtype": "one_year_ago", "text": "Show me the visit from about a year ago."}
+{"qtype": "one_year_ago", "text": "Pull up the exam from approximately one year earlier so I can see the annual change."}
+{"qtype": "one_year_ago", "text": "What were my results at the appointment around this time last year?"}
+{"qtype": "one_year_ago", "text": "Which prior visit falls closest to one year before the current one?"}
+{"qtype": "one_year_ago", "text": "1-yr lookback visit, please."}
+{"qtype": "six_months_ago", "text": "Compare with the 26-weeks-prior visit."}
+{"qtype": "six_months_ago", "text": "Pull up the exam from roughly six months earlier so I can compare it with today."}
+{"qtype": "six_months_ago", "text": "How was my eye at the check-up about half a year back?"}
+{"qtype": "six_months_ago", "text": "Find the follow-up from approximately 26 weeks prior."}
+{"qtype": "six_months_ago", "text": "I want to see how this eye has changed over the last six months — get the visit from then."}
+{"qtype": "unsupported", "text": "When did the subretinal fluid first fully resolve?"}
+{"qtype": "unsupported", "text": "When was the ellipsoid zone last intact under the fovea?"}
+{"qtype": "unsupported", "text": "At which visit did hyperreflective foci first appear?"}
+{"qtype": "unsupported", "text": "Show me the visit where the epiretinal membrane was first visible."}
+{"qtype": "unsupported", "text": "Which visit had the most severe diabetic retinopathy grade?"}
+{"qtype": "unsupported", "text": "When did the pigment epithelial detachment get biggest?"}
+{"qtype": "unsupported", "text": "Pull up the visit where the foveal contour was last normal."}
+{"qtype": "unsupported", "text": "Show the visit where the outer retinal atrophy began."}
+{"qtype": "unsupported", "text": "When was intraretinal fluid last absent in the parafovea?"}
+{"qtype": "unsupported", "text": "Which visit had the worst-looking scan overall in terms of structural damage?"}

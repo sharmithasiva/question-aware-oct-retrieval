@@ -1,0 +1,170 @@
+{
+  "E1_96img_4visits/resnet50": {
+    "top1_agreement_image_vs_closest_cst": {
+      "saved": 0.5,
+      "recomputed": 0.5,
+      "match": true
+    },
+    "top1_agreement_image_vs_closest_bcva": {
+      "saved": 0.5,
+      "recomputed": 0.5,
+      "match": true
+    },
+    "top1_agreement_image_vs_previous": {
+      "saved": 0.625,
+      "recomputed": 0.625,
+      "match": true
+    },
+    "top1_agreement_image_vs_baseline": {
+      "saved": 0.125,
+      "recomputed": 0.125,
+      "match": true
+    },
+    "spearman_cos_vs_temporal_closeness_pooled": {
+      "saved": 0.343,
+      "recomputed": 0.3434,
+      "match": true
+    },
+    "partial_spearman_cos_vs_cst_closeness_given_gap_pooled": {
+      "saved": 0.639,
+      "recomputed": 0.6392,
+      "match": true
+    },
+    "top5_same_eye_rate": {
+      "saved": 0.6229166666666667,
+      "recomputed": 0.6229,
+      "match": true
+    },
+    "top1_same_visit_rate": {
+      "saved": 0.041666666666666664,
+      "recomputed": 0.0417,
+      "match": true
+    },
+    "top5_same_trial_rate": {
+      "saved": 0.8229166666666666,
+      "recomputed": 0.8229,
+      "match": true
+    }
+  },
+  "E1_96img_4visits/dinov2_vits14": {
+    "top1_agreement_image_vs_closest_cst": {
+      "saved": 0.438,
+      "recomputed": 0.4375,
+      "match": true
+    },
+    "top1_agreement_image_vs_closest_bcva": {
+      "saved": 0.625,
+      "recomputed": 0.625,
+      "match": true
+    },
+    "top1_agreement_image_vs_previous": {
+      "saved": 0.562,
+      "recomputed": 0.5625,
+      "match": true
+    },
+    "top1_agreement_image_vs_baseline": {
+      "saved": 0.188,
+      "recomputed": 0.1875,
+      "match": true
+    },
+    "spearman_cos_vs_temporal_closeness_pooled": {
+      "saved": 0.252,
+      "recomputed": 0.252,
+      "match": true
+    },
+    "partial_spearman_cos_vs_cst_closeness_given_gap_pooled": {
+      "saved": 0.296,
+      "recomputed": 0.2963,
+      "match": true
+    },
+    "top5_same_eye_rate": {
+      "saved": 0.6395833333333334,
+      "recomputed": 0.6396,
+      "match": true
+    },
+    "top1_same_visit_rate": {
+      "saved": 0.10416666666666667,
+      "recomputed": 0.1042,
+      "match": true
+    },
+    "top5_same_trial_rate": {
+      "saved": 0.8250000000000001,
+      "recomputed": 0.825,
+      "match": true
+    }
+  },
+  "E2_73img_fullhist/resnet50": {
+    "top1_agreement_image_vs_closest_cst": {
+      "saved": 0.179,
+      "recomputed": 0.1791,
+      "match": true
+    },
+    "top1_agreement_image_vs_closest_bcva": {
+      "saved": 0.269,
+      "recomputed": 0.2687,
+      "match": true
+    },
+    "top1_agreement_image_vs_previous": {
+      "saved": 0.299,
+      "recomputed": 0.2985,
+      "match": true
+    },
+    "top1_agreement_image_vs_baseline": {
+      "saved": 0.104,
+      "recomputed": 0.1045,
+      "match": true
+    },
+    "spearman_cos_vs_temporal_closeness_pooled": {
+      "saved": 0.479,
+      "recomputed": 0.479,
+      "match": true
+    },
+    "partial_spearman_cos_vs_cst_closeness_given_gap_pooled": {
+      "saved": 0.279,
+      "recomputed": 0.2792,
+      "match": true
+    },
+    "embedding_order_matches_index_csv": {
+      "saved": true,
+      "recomputed": true,
+      "match": true
+    }
+  },
+  "E2_73img_fullhist/dinov2_vits14": {
+    "top1_agreement_image_vs_closest_cst": {
+      "saved": 0.164,
+      "recomputed": 0.1642,
+      "match": true
+    },
+    "top1_agreement_image_vs_closest_bcva": {
+      "saved": 0.134,
+      "recomputed": 0.1343,
+      "match": true
+    },
+    "top1_agreement_image_vs_previous": {
+      "saved": 0.224,
+      "recomputed": 0.2239,
+      "match": true
+    },
+    "top1_agreement_image_vs_baseline": {
+      "saved": 0.06,
+      "recomputed": 0.0597,
+      "match": true
+    },
+    "spearman_cos_vs_temporal_closeness_pooled": {
+      "saved": 0.367,
+      "recomputed": 0.3675,
+      "match": true
+    },
+    "partial_spearman_cos_vs_cst_closeness_given_gap_pooled": {
+      "saved": 0.114,
+      "recomputed": 0.1138,
+      "match": true
+    },
+    "embedding_order_matches_index_csv": {
+      "saved": true,
+      "recomputed": true,
+      "match": true
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "global_fixed_rule": "latest_prior",
+  "criterion": "max mean over 7 retrievable types of dev eye-macro Hit@1",
+  "data": "results/v3_dev/per_instance_dev.csv (train+val patients, dev paraphrases)",
+  "scores": {
+    "latest_prior": 0.2736,
+    "earliest_first": 0.0728,
+    "h_second_visit": 0.1475,
+    "h_max_cst": 0.1119,
+    "h_min_cst": 0.1608,
+    "h_max_bcva": 0.1956,
+    "h_min_bcva": 0.126
+  },
+  "per_type": {
+    "latest_prior": {
+      "first_vision_gain_1line": 0.1202,
+      "largest_bcva_drop": 0.2239,
+      "largest_cst_rise": 0.2593,
+      "last_thicker_than_now": 0.5817,
+      "last_vision_as_good": 0.6949,
+      "one_year_ago": 0.0,
+      "six_months_ago": 0.0355
+    },
+    "earliest_first": {
+      "first_vision_gain_1line": 0.0,
+      "largest_bcva_drop": 0.0,
+      "largest_cst_rise": 0.0,
+      "last_thicker_than_now": 0.077,
+      "last_vision_as_good": 0.0102,
+      "one_year_ago": 0.2656,
+      "six_months_ago": 0.1564
+    },
+    "h_second_visit": {
+      "first_vision_gain_1line": 0.4154,
+      "largest_bcva_drop": 0.119,
+      "largest_cst_rise": 0.046,
+      "last_thicker_than_now": 0.1413,
+      "last_vision_as_good": 0.0527,
+      "one_year_ago": 0.0,
+      "six_months_ago": 0.258
+    },
+    "h_max_cst": {
+      "first_vision_gain_1line": 0.0154,
+      "largest_bcva_drop": 0.0464,
+      "largest_cst_rise": 0.144,
+      "last_thicker_than_now": 0.1418,
+      "last_vision_as_good": 0.0428,
+      "one_year_ago": 0.1984,
+      "six_months_ago": 0.1946
+    },
+    "h_min_cst": {
+      "first_vision_gain_1line": 0.1572,
+      "largest_bcva_drop": 0.196,
+      "largest_cst_rise": 0.0,
+      "last_thicker_than_now": 0.2728,
+      "last_vision_as_good": 0.3524,
+      "one_year_ago": 0.0591,
+      "six_months_ago": 0.088
+    },
+    "h_max_bcva": {
+      "first_vision_gain_1line": 0.3054,
+      "largest_bcva_drop": 0.0,
+      "largest_cst_rise": 0.134,
+      "last_thicker_than_now": 0.2699,
+      "last_vision_as_good": 0.4438,
+      "one_year_ago": 0.0559,
+      "six_months_ago": 0.1605
+    },
+    "h_min_bcva": {
+      "first_vision_gain_1line": 0.0,
+      "largest_bcva_drop": 0.2764,
+      "largest_cst_rise": 0.1092,
+      "last_thicker_than_now": 0.1395,
+      "last_vision_as_good": 0.032,
+      "one_year_ago": 0.1376,
+      "six_months_ago": 0.187
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "n_items": 55,
+  "n_distinct_texts": 55,
+  "primary_routing_accuracy": [
+    55,
+    55
+  ],
+  "primary_unsafe_retrieval": [
+    0,
+    20
+  ],
+  "over_refusal": [
+    0,
+    35
+  ],
+  "limitation_exact": [
+    20,
+    20
+  ],
+  "limitation_any_refusal": [
+    20,
+    20
+  ],
+  "intent_exact": [
+    35,
+    35
+  ],
+  "field_accuracy": {
+    "operation": [
+      35,
+      35
+    ],
+    "target": [
+      25,
+      25
+    ],
+    "direction": [
+      15,
+      15
+    ],
+    "threshold": [
+      5,
+      5
+    ],
+    "offset_weeks": [
+      10,
+      10
+    ],
+    "tolerance_weeks": [
+      10,
+      10
+    ],
+    "comparator": [
+      10,
+      10
+    ],
+    "recency": [
+      10,
+      10
+    ]
+  }
+}

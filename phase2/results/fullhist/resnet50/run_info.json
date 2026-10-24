@@ -1,0 +1,9 @@
+{
+  "encoder": "resnet50",
+  "subset": "phase2/data/atlas_fullhist",
+  "n": 73,
+  "dim": 2048,
+  "device": "cpu",
+  "seconds": 11.4,
+  "torch": "2.14.1+cpu"
+}

@@ -1,0 +1,19 @@
+{
+  "raw": {
+    "file": "paraphrases_v2_raw.jsonl",
+    "sha256": "eff9ced16292c41c59abf7e85dd1fece5bde9b6ef26aaed89827d935ada135f8",
+    "n": 110
+  },
+  "dev": {
+    "file": "paraphrases_v2_dev.jsonl",
+    "sha256": "6f65be9b9dc9b61abe956dbeb49085e38e4808e6e27eeba6fffef5478c020f62",
+    "n": 55
+  },
+  "locked": {
+    "file": "paraphrases_v2_locked.jsonl",
+    "sha256": "a87b9031bdb3f916b1c3dc5e74231b9274669cc7f6cb0d7233dcd225317488fd",
+    "n": 55
+  },
+  "seed": 42,
+  "note": "locked set: evaluate only; never used to change the parser"
+}

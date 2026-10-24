@@ -1,0 +1,22 @@
+{
+  "selected_fixed_rule": {
+    "largest_cst_rise": "latest_prior",
+    "largest_bcva_drop": "h_min_bcva",
+    "first_vision_gain_1line": "h_second_visit",
+    "one_year_ago": "earliest_first",
+    "six_months_ago": "h_second_visit",
+    "max_leakage": "earliest_first",
+    "last_thicker_than_now": "latest_prior",
+    "last_vision_as_good": "latest_prior"
+  },
+  "selected_on": "dev (train+val patients, dev paraphrases), eye-macro Hit@1",
+  "candidates": [
+    "latest_prior",
+    "earliest_first",
+    "h_second_visit",
+    "h_max_cst",
+    "h_min_cst",
+    "h_max_bcva",
+    "h_min_bcva"
+  ]
+}

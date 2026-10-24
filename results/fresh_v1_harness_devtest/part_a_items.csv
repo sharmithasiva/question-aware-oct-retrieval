@@ -1,0 +1,56 @@
+id,category,intended_type,gold_routing,expected_task,system_task,developer_viewed,routing_correct,system_retrieves,reason,parsed_operation,parsed_target,parsed_direction,parsed_threshold,parsed_offset_weeks,parsed_tolerance_weeks,parsed_comparator,parsed_recency,field_ok_operation,field_ok_target,field_ok_direction,field_ok_threshold,intent_exact,field_ok_comparator,field_ok_recency,field_ok_offset_weeks,field_ok_tolerance_weeks
+D001,supported,first_vision_gain_1line,retrieve,retrieve,retrieve,True,True,True,,first_threshold_crossing,bcva,increase,5.0,,,,,True,True,True,True,True,,,,
+D002,supported,first_vision_gain_1line,retrieve,retrieve,retrieve,True,True,True,,first_threshold_crossing,bcva,increase,5.0,,,,,True,True,True,True,True,,,,
+D003,supported,first_vision_gain_1line,retrieve,retrieve,retrieve,True,True,True,,first_threshold_crossing,bcva,increase,5.0,,,,,True,True,True,True,True,,,,
+D004,supported,first_vision_gain_1line,retrieve,retrieve,retrieve,True,True,True,,first_threshold_crossing,bcva,increase,5.0,,,,,True,True,True,True,True,,,,
+D005,supported,first_vision_gain_1line,retrieve,retrieve,retrieve,True,True,True,,first_threshold_crossing,bcva,increase,5.0,,,,,True,True,True,True,True,,,,
+D006,supported,largest_bcva_drop,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,bcva,decrease,,,,,,True,True,True,,True,,,,
+D007,supported,largest_bcva_drop,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,bcva,decrease,,,,,,True,True,True,,True,,,,
+D008,supported,largest_bcva_drop,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,bcva,decrease,,,,,,True,True,True,,True,,,,
+D009,supported,largest_bcva_drop,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,bcva,decrease,,,,,,True,True,True,,True,,,,
+D010,supported,largest_bcva_drop,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,bcva,decrease,,,,,,True,True,True,,True,,,,
+D011,supported,largest_cst_rise,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,cst,increase,,,,,,True,True,True,,True,,,,
+D012,supported,largest_cst_rise,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,cst,increase,,,,,,True,True,True,,True,,,,
+D013,supported,largest_cst_rise,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,cst,increase,,,,,,True,True,True,,True,,,,
+D014,supported,largest_cst_rise,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,cst,increase,,,,,,True,True,True,,True,,,,
+D015,supported,largest_cst_rise,retrieve,retrieve,retrieve,True,True,True,,max_consecutive_change,cst,increase,,,,,,True,True,True,,True,,,,
+D016,images_or_unavailable,none,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'injection', which is not in the retriever memory",,injection,,,,,,,,,,,,,,,
+D017,images_or_unavailable,none,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'injection', which is not in the retriever memory",,injection,,,,,,,,,,,,,,,
+D018,images_or_unavailable,none,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'injection', which is not in the retriever memory",,injection,,,,,,,,,,,,,,,
+D019,images_or_unavailable,none,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'injection', which is not in the retriever memory",,injection,,,,,,,,,,,,,,,
+D020,images_or_unavailable,none,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'injection', which is not in the retriever memory",,injection,,,,,,,,,,,,,,,
+D021,supported,last_thicker_than_now,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,cst,,,,,gt,last,True,True,,,True,True,True,,
+D022,supported,last_thicker_than_now,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,cst,,,,,gt,last,True,True,,,True,True,True,,
+D023,supported,last_thicker_than_now,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,cst,,,,,gt,last,True,True,,,True,True,True,,
+D024,supported,last_thicker_than_now,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,cst,,,,,gt,last,True,True,,,True,True,True,,
+D025,supported,last_thicker_than_now,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,cst,,,,,gt,last,True,True,,,True,True,True,,
+D026,supported,last_vision_as_good,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,bcva,,,,,ge,last,True,True,,,True,True,True,,
+D027,supported,last_vision_as_good,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,bcva,,,,,ge,last,True,True,,,True,True,True,,
+D028,supported,last_vision_as_good,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,bcva,,,,,ge,last,True,True,,,True,True,True,,
+D029,supported,last_vision_as_good,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,bcva,,,,,ge,last,True,True,,,True,True,True,,
+D030,supported,last_vision_as_good,retrieve,retrieve,retrieve,True,True,True,,compare_to_current,bcva,,,,,ge,last,True,True,,,True,True,True,,
+D031,supported,max_leakage,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'leakage_index', which is not in the retriever memory",,leakage_index,,,,,,,,,,,,,,,
+D032,supported,max_leakage,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'leakage_index', which is not in the retriever memory",,leakage_index,,,,,,,,,,,,,,,
+D033,supported,max_leakage,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'leakage_index', which is not in the retriever memory",,leakage_index,,,,,,,,,,,,,,,
+D034,supported,max_leakage,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'leakage_index', which is not in the retriever memory",,leakage_index,,,,,,,,,,,,,,,
+D035,supported,max_leakage,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'leakage_index', which is not in the retriever memory",,leakage_index,,,,,,,,,,,,,,,
+D036,supported,one_year_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,52.0,4.0,,,True,,,,True,,,True,True
+D037,supported,one_year_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,52.0,4.0,,,True,,,,True,,,True,True
+D038,supported,one_year_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,52.0,4.0,,,True,,,,True,,,True,True
+D039,supported,one_year_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,52.0,4.0,,,True,,,,True,,,True,True
+D040,supported,one_year_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,52.0,4.0,,,True,,,,True,,,True,True
+D041,supported,six_months_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,26.0,4.0,,,True,,,,True,,,True,True
+D042,supported,six_months_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,26.0,4.0,,,True,,,,True,,,True,True
+D043,supported,six_months_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,26.0,4.0,,,True,,,,True,,,True,True
+D044,supported,six_months_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,26.0,4.0,,,True,,,,True,,,True,True
+D045,supported,six_months_ago,retrieve,retrieve,retrieve,True,True,True,,time_offset,,,,26.0,4.0,,,True,,,,True,,,True,True
+D046,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D047,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D048,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D049,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D050,images_or_unavailable,none,data_unavailable,unavailable_variable,unavailable_variable,True,True,False,"requires 'drss_level', which is not in the retriever memory",,drss_level,,,,,,,,,,,,,,,
+D051,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D052,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D053,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D054,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,
+D055,images_or_unavailable,none,requires_images,unsupported_image,unsupported_image,True,True,False,requires OCT image findings; no metadata answer,,,,,,,,,,,,,,,,,

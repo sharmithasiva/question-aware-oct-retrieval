@@ -1,0 +1,1 @@
+annotation_row_id,query_id,set,tier,category,question,eye_id,patient_id,query_visit_id,query_image,candidate_code,candidate_image,presentation_order,contact_sheet,grade,ungradable,query_answerable,missing_data_flags,evidence_source,rationale,annotator_id,annotator_role,annotation_date,adjudication_status,label_source,candidate_generated_by

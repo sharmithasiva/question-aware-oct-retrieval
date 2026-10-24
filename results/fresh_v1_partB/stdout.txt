@@ -1,0 +1,290 @@
+{
+  "fixtures": {
+    "largest_cst_rise": {
+      "cases": 6,
+      "retriever": 6,
+      "answer_key": 6,
+      "reference": 6
+    },
+    "largest_bcva_drop": {
+      "cases": 6,
+      "retriever": 6,
+      "answer_key": 6,
+      "reference": 6
+    },
+    "first_vision_gain_1line": {
+      "cases": 6,
+      "retriever": 5,
+      "answer_key": 6,
+      "reference": 6
+    },
+    "one_year_ago": {
+      "cases": 6,
+      "retriever": 6,
+      "answer_key": 6,
+      "reference": 6
+    },
+    "six_months_ago": {
+      "cases": 6,
+      "retriever": 6,
+      "answer_key": 6,
+      "reference": 6
+    },
+    "max_leakage": {
+      "cases": 6,
+      "retriever": 5,
+      "answer_key": 6,
+      "reference": 6
+    },
+    "last_thicker_than_now": {
+      "cases": 6,
+      "retriever": 5,
+      "answer_key": 6,
+      "reference": 6
+    },
+    "last_vision_as_good": {
+      "cases": 6,
+      "retriever": 5,
+      "answer_key": 6,
+      "reference": 6
+    }
+  },
+  "fixture_coverage": {
+    "largest_cst_rise": {
+      "tie": 1,
+      "latest_wrong": 2,
+      "earliest_wrong": 3,
+      "missing_value": 2,
+      "no_answer": 1,
+      "boundary": 2,
+      "insufficient_data": 2
+    },
+    "largest_bcva_drop": {
+      "tie": 1,
+      "latest_wrong": 3,
+      "earliest_wrong": 3,
+      "missing_value": 2,
+      "no_answer": 1,
+      "boundary": 2,
+      "insufficient_data": 2
+    },
+    "first_vision_gain_1line": {
+      "boundary": 2,
+      "latest_wrong": 3,
+      "earliest_wrong": 3,
+      "tie:not_applicable": 2,
+      "missing_value": 2,
+      "no_answer": 1,
+      "insufficient_data": 2
+    },
+    "one_year_ago": {
+      "boundary": 5,
+      "latest_wrong": 4,
+      "earliest_wrong": 3,
+      "no_answer": 1,
+      "tie": 1,
+      "missing_value": 1,
+      "insufficient_data": 1
+    },
+    "six_months_ago": {
+      "tie": 1,
+      "boundary": 3,
+      "earliest_wrong": 2,
+      "no_answer": 1,
+      "latest_wrong": 2,
+      "insufficient_data": 2,
+      "missing_value": 2
+    },
+    "max_leakage": {
+      "tie": 1,
+      "latest_wrong": 3,
+      "earliest_wrong": 2,
+      "missing_value": 2,
+      "insufficient_data": 3,
+      "boundary": 2,
+      "no_answer:not_applicable": 1
+    },
+    "last_thicker_than_now": {
+      "boundary": 1,
+      "latest_wrong": 2,
+      "earliest_wrong": 3,
+      "tie:not_applicable": 1,
+      "missing_value": 2,
+      "no_answer": 1,
+      "insufficient_data": 2
+    },
+    "last_vision_as_good": {
+      "boundary": 2,
+      "latest_wrong": 3,
+      "earliest_wrong": 3,
+      "tie:not_applicable": 1,
+      "missing_value": 2,
+      "no_answer": 1,
+      "insufficient_data": 2
+    }
+  },
+  "random": {
+    "largest_cst_rise": {
+      "cases": 2000,
+      "retriever_vs_reference": 2000,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 2000
+    },
+    "largest_bcva_drop": {
+      "cases": 2000,
+      "retriever_vs_reference": 2000,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 2000
+    },
+    "first_vision_gain_1line": {
+      "cases": 2000,
+      "retriever_vs_reference": 1809,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 1809
+    },
+    "one_year_ago": {
+      "cases": 2000,
+      "retriever_vs_reference": 2000,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 2000
+    },
+    "six_months_ago": {
+      "cases": 2000,
+      "retriever_vs_reference": 2000,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 2000
+    },
+    "max_leakage": {
+      "cases": 2000,
+      "retriever_vs_reference": 1862,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 1862
+    },
+    "last_thicker_than_now": {
+      "cases": 2000,
+      "retriever_vs_reference": 1815,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 1815
+    },
+    "last_vision_as_good": {
+      "cases": 2000,
+      "retriever_vs_reference": 1850,
+      "key_vs_reference": 2000,
+      "retriever_vs_key": 1850
+    }
+  },
+  "real_train_val": {
+    "largest_cst_rise": {
+      "cases": 1214,
+      "retriever_vs_reference": 1214,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1214
+    },
+    "largest_bcva_drop": {
+      "cases": 1214,
+      "retriever_vs_reference": 1214,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1214
+    },
+    "first_vision_gain_1line": {
+      "cases": 1214,
+      "retriever_vs_reference": 1137,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1137
+    },
+    "one_year_ago": {
+      "cases": 1214,
+      "retriever_vs_reference": 1214,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1214
+    },
+    "six_months_ago": {
+      "cases": 1214,
+      "retriever_vs_reference": 1214,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1214
+    },
+    "max_leakage": {
+      "cases": 1214,
+      "retriever_vs_reference": 1182,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1182
+    },
+    "last_thicker_than_now": {
+      "cases": 1214,
+      "retriever_vs_reference": 1137,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1137
+    },
+    "last_vision_as_good": {
+      "cases": 1214,
+      "retriever_vs_reference": 1137,
+      "key_vs_reference": 1214,
+      "retriever_vs_key": 1137
+    }
+  },
+  "mutation_baseline": {
+    "fixture_cases_scored": 44,
+    "random_cases_scored": 15336
+  },
+  "mutants": {
+    "M1_strict_gt_becomes_ge": {
+      "new_fixture_failures": 1,
+      "new_random_failures": 398,
+      "crashes": 0,
+      "killed": true
+    },
+    "M2_tolerance_plus_one": {
+      "new_fixture_failures": 2,
+      "new_random_failures": 59,
+      "crashes": 0,
+      "killed": true
+    },
+    "M3_current_visit_is_candidate": {
+      "new_fixture_failures": 17,
+      "new_random_failures": 4850,
+      "crashes": 1640,
+      "killed": true
+    },
+    "M4_baseline_gets_a_change": {
+      "new_fixture_failures": 0,
+      "new_random_failures": 0,
+      "crashes": 0,
+      "killed": false
+    },
+    "M5_threshold_strict": {
+      "new_fixture_failures": 1,
+      "new_random_failures": 303,
+      "crashes": 0,
+      "killed": true
+    },
+    "M6_first_becomes_latest": {
+      "new_fixture_failures": 3,
+      "new_random_failures": 610,
+      "crashes": 0,
+      "killed": true
+    },
+    "M7_target_week_off_by_one": {
+      "new_fixture_failures": 2,
+      "new_random_failures": 295,
+      "crashes": 0,
+      "killed": true
+    },
+    "M8_tie_break_reversed": {
+      "new_fixture_failures": 0,
+      "new_random_failures": 0,
+      "crashes": 0,
+      "killed": false
+    }
+  },
+  "metamorphic": {
+    "cst_shift_cases": 16000,
+    "cst_shift_retriever_ok": 16000,
+    "cst_shift_key_ok": 16000,
+    "cst_shift_reference_ok": 16000,
+    "append_after_current_cases": 16000,
+    "append_after_current_retriever_ok": 16000
+  },
+  "metamorphic_note": "Renaming visit IDs is not tested separately: retriever, key adapter and reference all operate on positions, so it is a no-op for this harness."
+}
+disagreement records: 28

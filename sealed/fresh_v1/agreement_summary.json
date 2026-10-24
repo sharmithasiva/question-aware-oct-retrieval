@@ -1,0 +1,73 @@
+{
+  "n_questions": 120,
+  "n_labelled_by_both": 120,
+  "agreement_rate": {
+    "category": 1.0,
+    "routing": 0.983,
+    "intended_type": 1.0,
+    "answerability": 1.0
+  },
+  "cohen_kappa": {
+    "category": 1.0,
+    "routing": 0.973,
+    "intended_type": 1.0
+  },
+  "required_fields_exact_agreement": 0.867,
+  "parameters_exact_agreement": 0.4,
+  "n_disagreements": 2,
+  "disagreement_ids": [
+    "F065",
+    "F080"
+  ],
+  "disagreements_by_field": {
+    "category": 0,
+    "routing": 2,
+    "intended_type": 0,
+    "answerability": 0
+  },
+  "quota_generator": {
+    "plausible_unsupported": 15,
+    "supported": 80,
+    "ambiguous_underspecified_offtopic": 10,
+    "images_or_unavailable": 15
+  },
+  "quota_annotator": {
+    "plausible_unsupported": 15,
+    "supported": 80,
+    "ambiguous_underspecified_offtopic": 10,
+    "images_or_unavailable": 15
+  },
+  "quota_target": {
+    "supported": 80,
+    "plausible_unsupported": 15,
+    "images_or_unavailable": 15,
+    "ambiguous_underspecified_offtopic": 10
+  },
+  "supported_type_counts_generator": {
+    "first_vision_gain_1line": 10,
+    "largest_cst_rise": 10,
+    "last_thicker_than_now": 10,
+    "six_months_ago": 10,
+    "largest_bcva_drop": 10,
+    "last_vision_as_good": 10,
+    "max_leakage": 10,
+    "one_year_ago": 10
+  },
+  "near_duplicate_pairs": [],
+  "overlap_with_dev_or_v1": [],
+  "review_sample_ids": [
+    "F002",
+    "F089",
+    "F082",
+    "F059",
+    "F056",
+    "F097",
+    "F011",
+    "F075",
+    "F017",
+    "F014",
+    "F060",
+    "F118"
+  ],
+  "note": "Agreement between two AI agents from the same model family is not evidence of clinical correctness."
+}

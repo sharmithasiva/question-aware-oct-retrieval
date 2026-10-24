@@ -1,0 +1,20 @@
+{
+  "set": "dev",
+  "tier": "B",
+  "rel_threshold": 2.0,
+  "drop_visits": [],
+  "primary_metric": "ndcg5",
+  "label_source": null,
+  "labels_present": false,
+  "n_queries": 36,
+  "status_counts": {
+    "not_evaluated_missing_labels": 36
+  },
+  "encoders_with_embeddings": [
+    "dinov2_vits14",
+    "resnet50"
+  ],
+  "rrf_k": 60,
+  "min_candidates": 6,
+  "protocol": "phase2/QUESTION_EVAL_PROTOCOL.md v0.1"
+}

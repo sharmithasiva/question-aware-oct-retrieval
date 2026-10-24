@@ -1,0 +1,12 @@
+{
+  "seed": 42,
+  "alpha": 0.05,
+  "ks": [
+    1,
+    2,
+    3
+  ],
+  "bootstrap_reps": 1000,
+  "min_history": 2,
+  "n_instances": 11215
+}

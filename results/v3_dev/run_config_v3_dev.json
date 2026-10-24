@@ -1,0 +1,13 @@
+{
+  "seed": 42,
+  "splits": [
+    "train",
+    "val"
+  ],
+  "paraphrases": "dev",
+  "alpha_frozen_from_v1": 0.05,
+  "bootstrap_reps": 1000,
+  "temporal_tolerance_weeks": 4,
+  "n_instances": 6595,
+  "n_answerable": 5614
+}
