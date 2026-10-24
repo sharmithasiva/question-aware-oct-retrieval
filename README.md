@@ -1,25 +1,120 @@
-# Question-Aware Episodic Retrieval for Longitudinal Retinal OCT — Phase 1
+# Question-Aware Episodic Retrieval for Longitudinal Retinal OCT Reasoning with Vision-Language Models
 
-Phase 1 covers retrieval from metadata only: it uses the OLIVES label files and no images or models.
+When a clinical question is asked at a patient's **current** OCT visit, the system should retrieve the relevant
+**earlier visits of the same eye**, instead of always using the latest visit, a fixed window or the full history.
+Later phases will test whether question-aware retrieval improves answers from a vision-language model (VLM) that
+sees the retrieved OCT images.
 
-## Layout
+The dataset is **OLIVES** (TREX-DME and Prime trials): 1,594 visits, 96 eyes, 87 patients.
+
+> **Status:**
+> - A research prototype. **Not clinically validated**: no clinician has reviewed any question, label or result.
+> - The Phase 1 benchmark is AI-generated, with limited human review.
+> - The Phase 2 image results are exploratory. No experiment so far shows that images improve retrieval for image-dependent questions.
+
+| Phase | Goal | Status |
+|---|---|---|
+| 1 | Metadata-only retrieval: visit memory, question parser, retriever, baselines, sealed evaluation | **Complete and frozen** |
+| 2 | Real OCT images: verified image subset, embeddings, image vs metadata retrieval, question-conditioned evaluation | **In progress**: pipeline, metrics and evaluation harness done; human relevance labels pending |
+| 3 | VLM answer generation from retrieved images | Not started |
+
+## Repository layout
 
 ```
-OLIVES_Dataset_Labels/         raw label files (input; not modified)
-docs/DATA_AUDIT.md             data audit, identifier mapping, assumptions, aggregation strategy
-src/oct_retrieval/
-  load.py                      read raw tables, parse trial-specific image paths
-  episodes.py                  visit-level episodic memory table + patient-level splits
-  questions.py                 question types, rule-based question parser, metadata ground truth
-  retrievers.py                latest / earliest / random / full-history / temporal / clinical / combined / rule router
-  metrics.py                   Hit@K, Recall@K, MRR, nDCG@K
-  evaluate.py                  benchmark runner -> results/ + reports/RETRIEVAL_REPORT.md
-  audit.py                     prints the numbers quoted in the audit
-tests/                         unit tests (synthetic) + integration tests on the real label files
-data/processed/                episodes.csv (1 row per visit), visit_images.csv (1 row per B-scan path)
-results/                       per-instance metrics, summaries, parser check, run config
-reports/RETRIEVAL_REPORT.md    generated evaluation report
+OLIVES_Dataset_Labels/          raw OLIVES label files (unmodified)
+data/processed/                 episodes.csv (1 row per eye-visit), visit_images.csv (1 row per B-scan path)
+src/oct_retrieval/              Phase 1 package (FROZEN)
+  load.py, episodes.py            read labels, build visit-level memory, patient-level splits
+  questions.py, ground_truth_v2.py  question types and metadata answer keys (v1, v2)
+  intent.py, intent_retrieval.py  structured intent parser + retrieval with explicit abstention (system under test)
+  retrievers.py, metrics.py       baselines (latest_prior, ...), Hit@K / MRR / nDCG
+  evaluate*.py, audit.py          v1 / v2 / v3-dev runners, audit numbers
+scripts/                        fresh_v1 sealed-evaluation harness (FROZEN)
+tests/                          Phase 1 tests (FROZEN; 205 tests)
+sealed/fresh_v1/                fresh_v1 benchmark (now exposed; do not reuse as a test set)
+results/, reports/              Phase 1 outputs, pre-registration and freeze manifests (results/fresh_v1_prereg/)
+docs/                           data audit, specs, Phase 1/2 handoffs, Phase 2 image prototype notes
+notebooks/01_image_processing.ipynb   Colab notebook: load, preprocess, embed, top-5 similarity, integration
+phase2/                         Phase 2 (all new work; Phase 1 is imported read-only)
+  fetch_atlas_subset.py           bounded, metadata-verified image fetcher (Retina OCT atlas)
+  oct_image.py                    loading, preprocessing, ResNet-50 / DINOv2 encoders, cosine top-k
+  embed_subset.py                 embed a verified subset from the command line
+  image_vs_metadata.py            image vs frozen-metadata ranking comparison; prototype hybrid route
+  plot_fullhist.py                per-eye similarity / CST-BCVA figure
+  consolidate_metrics.py          rebuilds every reported metric from saved outputs
+  question_eval.py                question-conditioned evaluation harness (5 systems)
+  make_annotation_packet.py       blinded annotation packets for human relevance grading
+  make_colab_bundle.py            builds the zip the Colab notebook uploads
+  data/atlas_subset/              96 verified B-scans (8 eyes x 4 visits x 3 scans) + manifest/provenance
+  data/atlas_fullhist/            73 verified central B-scans (full history of 3 eyes)
+  results/                        embeddings, figures, comparison outputs, performance/, question_eval/
+  annotations/                    annotation template, dev sheet (no grades yet), packets, log
+  tests/                          Phase 2 tests
+  PERFORMANCE_REPORT.md           consolidated Phase 2 metrics with formulas and limitations
+  QUESTION_EVAL_PROTOCOL.md       protocol for the question-conditioned evaluation
+  QUESTION_EVAL_RESULTS.md        status and results of that evaluation
 ```
+
+## Phase 1: metadata-only retrieval (frozen)
+
+**What was built:**
+- one memory record per eye-visit (CST, BCVA, visit order, Prime study week);
+- a structured question parser;
+- a retriever with six explicit outcomes: retrieved / no qualifying visit / insufficient data / unavailable variable / unsupported image / clarification.
+
+**Baseline:** the approved fixed-rule baseline is **`latest_prior`**.
+
+**fresh_v1 results** (one-shot, pre-registered; `reports/FRESH_V1_REPORT.md`):
+- **Routing accuracy:** 98/120 = 0.817.
+- **Unsafe retrieval:** 4/50 = 0.080.
+- **Exact intent:** 47/70 = 0.671.
+- **Image questions:** routed to `unsupported_image` in 6/7 cases (7/7 refused).
+
+The benchmark is AI-generated, with limited human review and unverified annotator independence.
+
+**Details:** `docs/PHASE_1_HANDOFF.md`. **Known issues:** `results/fresh_v1_prereg/KNOWN_ISSUES.md`.
+
+> **Do not modify** `src/oct_retrieval/`, `tests/`, `scripts/`, `sealed/` or `results/`.
+> **Do not re-run** the v1 / v2 / v3-dev evaluation commands: they overwrite frozen outputs.
+> Never re-run the sealed one-shot command.
+
+## Phase 2: OCT images (in progress)
+
+**Image access:**
+- **Source:** 169 real OLIVES B-scans were fetched from the Retina OCT atlas, a third-party index serving 504×496 WebP derivatives.
+- **Verification:** each image is kept only if its archive path, eye, patient, laterality, visit, BCVA and CST all match our metadata. 0 were rejected.
+- **Bounds:** test-split eyes and eyes with data issues are excluded; the full 33.9 GB archive was not downloaded.
+- **Details:** `docs/PHASE_2_IMAGE_PROTOTYPE.md`.
+
+**Pipeline:**
+- **Preprocessing:** grayscale → resize to 224×224 → ImageNet normalisation.
+- **Encoders:** two pretrained, non-gated models, ResNet-50 and DINOv2 ViT-S/14, run on GPU with a CPU fallback.
+- **Retrieval:** cosine top-k.
+- **Notebook:** `notebooks/01_image_processing.ipynb` runs in Colab. It was executed locally on CPU; it has not yet been run in Colab.
+
+**Exploratory metrics** (full tables, formulas and baselines in `phase2/PERFORMANCE_REPORT.md`):
+
+| Experiment | Metric | ResNet-50 | DINOv2 | Random |
+|---|---|---|---|---|
+| E1: 96 images, 8 eyes | top-5 neighbours from the same eye (identity, not relevance) | 0.623 | 0.640 | 0.116 |
+| E2: 73 images, full history of 3 eyes | image top-1 is the previous visit | 0.299 | 0.224 | 0.123 |
+| E2 | Spearman: cosine vs temporal closeness | 0.479 | 0.368 | 0 |
+| E2 | partial Spearman: cosine vs CST closeness, given the time gap | 0.279 | 0.114 | 0 |
+
+**Question-conditioned evaluation** (`phase2/QUESTION_EVAL_PROTOCOL.md`, `phase2/QUESTION_EVAL_RESULTS.md`): five systems are compared on a shared query set and candidate pool:
+- `latest_prior`;
+- metadata-only (the frozen Phase 1 system);
+- image-only ResNet-50;
+- image-only DINOv2;
+- an untuned RRF hybrid.
+
+**Results so far:**
+- **Tier A** (CST questions; relevance from the frozen Phase 1 answer keys; 3 dev eyes):
+  - On "When was the CST most similar to today?", MRR is `latest_prior` 0.412, ResNet-50 0.338, DINOv2 0.265 and random 0.260.
+  - Images do **not** stand in for CST measurements, and the hybrid scores below metadata-only in every category.
+- **Tier B** (image-dependent questions): **NOT EVALUATED**. The blinded dev annotation packet is ready (`phase2/annotations/`), but no human relevance grades exist yet.
+
+**Next step:** grade the dev Tier B sheet, then fetch, freeze and blindly evaluate the held-out val eyes (protocol §7).
 
 ## Run
 
@@ -27,35 +122,52 @@ reports/RETRIEVAL_REPORT.md    generated evaluation report
 pip install pandas numpy openpyxl pytest
 ```
 
+Phase 1 freeze and tests. Expected output: `freeze OK` and `205 passed`.
+
+```bash
+python scripts/fresh_v1.py verify-freeze
+```
+
 ```bash
 python -m pytest -q
 ```
 
-```bash
-PYTHONPATH=src python -m oct_retrieval.evaluate
-```
-
-v2 adds harder question types (spec: `docs/PHASE1_V2_QUESTION_SPEC.md`) and writes to `results/v2/` and `reports/RETRIEVAL_REPORT_V2.md`. It never overwrites v1, which is preserved in `results/v1_snapshot/` with checksums.
+Phase 2 tests and metrics. These need only pandas, numpy and Pillow, because saved embeddings are reused.
 
 ```bash
-PYTHONPATH=src python -m oct_retrieval.evaluate_v2
+python -m pytest -q phase2/tests
 ```
 
-On PowerShell, set the path with `$env:PYTHONPATH="src"` instead. The full run takes about 2 minutes on a CPU laptop and is deterministic (seed 42).
+```bash
+python phase2/consolidate_metrics.py
+```
+
+```bash
+python phase2/question_eval.py --set dev --tier A
+```
+
+Re-embedding images needs torch and torchvision, which are not project dependencies; Colab has them preinstalled.
+
+```bash
+python phase2/embed_subset.py --subset phase2/data/atlas_fullhist --encoder resnet50 --out phase2/results/fullhist/resnet50
+```
+
+To use **Colab**:
+1. Build the bundle with `python phase2/make_colab_bundle.py`.
+2. Upload `notebooks/01_image_processing.ipynb` to Colab.
+3. Run all cells, and upload `phase2/dist/phase2_colab_bundle.zip` when prompted.
+
+On PowerShell, set environment variables with `$env:NAME="value"`.
 
 ## Key data facts
 
-These are verified facts; see the audit for details.
+These are verified; see `docs/DATA_AUDIT.md` and `docs/PHASE_2_HANDOFF.md`.
 
-- 1,594 visits, 96 eyes and 87 patients. A visit is (`Eye_ID`, visit folder). CST and BCVA are constant within every visit.
+- A visit is (`eye_id`, visit folder). CST and BCVA are constant within a visit.
+- Splits are made at patient level (seed 42): train 52, val 17, test 18 patients.
 - Biomarker labels exist only for the first and last visit of each eye.
-- Splits are made at patient level. Both eyes of a patient, and all visits of an eye, always land in the same split.
-
-Phase 1.3 (development only; the locked test is not run) adds a structured intent parser and retrieval with explicit abstention:
-
-```bash
-PYTHONPATH=src python -m oct_retrieval.evaluate_v3_dev
-```
+- Eye 79 has unresolved OD/OS laterality.
+- The atlas serves byte-identical images for `01-013` W8 and W12.
 
 ## Data attribution
 
