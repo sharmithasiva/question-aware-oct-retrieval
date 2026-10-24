@@ -56,3 +56,7 @@ Phase 1.3 (development only; the locked test is not run) adds a structured inten
 ```bash
 PYTHONPATH=src python -m oct_retrieval.evaluate_v3_dev
 ```
+
+## Data attribution
+
+This repository includes OLIVES data and derived material (CC BY 4.0). See [DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md) for the required citation, the image source and what was changed.
