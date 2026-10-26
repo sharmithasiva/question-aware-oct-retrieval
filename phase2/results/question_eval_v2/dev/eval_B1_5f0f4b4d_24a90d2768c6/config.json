@@ -1,0 +1,42 @@
+{
+  "run_id": "eval_B1_5f0f4b4d_24a90d2768c6",
+  "created_utc": "2026-10-26T09:12:54+00:00",
+  "set": "dev",
+  "category": "B1",
+  "category_name": "overall_appearance",
+  "sheet": "phase2\\annotations\\v2\\dev\\B1\\sheet.csv",
+  "sheet_sha256": "5f0f4b4dd390e963a769b88b30bcf099e1513a3f2f53dc7832800e912eb559a2",
+  "key": "C:\\question aware retinal oct reasoning\\phase2\\annotations\\keys\\v2\\dev_B1_key.csv",
+  "key_sha256": "018e34dc2a31c1189c67434df7fd111156caa78ab01c43086fb7477265a5e498",
+  "rankings": "C:\\question aware retinal oct reasoning\\phase2\\results\\question_eval_v2\\dev\\rankings_tierB_24a90d2768c6",
+  "rankings_sha256": "24a90d2768c6076e45f68427ffde0f05960a17a6086ba5aeea5d3cae2f388837",
+  "second_sheet": null,
+  "relevance_primary": "grade 2",
+  "relevance_secondary": "grade >= 1",
+  "ndcg_gains": "2^g - 1",
+  "u_x_primary": "removed from pool for all systems",
+  "u_x_sensitivity": "scored 0",
+  "bootstrap": {
+    "n": 10000,
+    "seed": 20261024,
+    "min_eyes": 5
+  },
+  "git_head": "7fd4f3ed986abd0a3cedcae9573f87fbda00dd1c",
+  "evaluator_sha256": "2d5914ff673923a1412df26624d1c331f184030af6090f02eadb1edeb969b324",
+  "counts": {
+    "n_queries": 18,
+    "n_judgments": 264,
+    "n_labelled": 0,
+    "n_blank": 264,
+    "labels": {
+      "blank": 264
+    },
+    "query_status": {
+      "not_evaluated_missing_labels": 18
+    },
+    "annotators": [],
+    "annotator_roles": [],
+    "n_eyes": 3
+  },
+  "agreement": null
+}

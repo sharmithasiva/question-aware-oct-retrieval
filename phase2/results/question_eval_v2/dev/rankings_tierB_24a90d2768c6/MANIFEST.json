@@ -1,0 +1,34 @@
+{
+  "created_utc": "2026-10-26T09:07:32+00:00",
+  "git_head": "7fd4f3ed986abd0a3cedcae9573f87fbda00dd1c",
+  "set": "dev",
+  "tier": "B",
+  "n_queries": 36,
+  "n_rows": 3168,
+  "systems": [
+    "S1_latest_prior",
+    "S2p_metadata_proxy_cst",
+    "S3S4_image_dinov2_vits14",
+    "S3S4_image_resnet50",
+    "S5_hybrid_rrf_dinov2_vits14",
+    "S5_hybrid_rrf_resnet50"
+  ],
+  "abstaining": {
+    "S2_metadata": 36
+  },
+  "tie_rule": "exact score ties -> more recent visit first (question_eval.recency_order)",
+  "rrf_k": 60,
+  "min_candidates": 6,
+  "rankings_sha256": "24a90d2768c6076e45f68427ffde0f05960a17a6086ba5aeea5d3cae2f388837",
+  "query_set_sha256": "95c2024efbfb98aa4c14faaa7adebef5d7f0a5abff36b55b13c9be7c4597162d",
+  "inputs_sha256": {
+    "data/processed/episodes.csv": "3959ddca006db293592ce1442da3de4bdd9abf25888bf37ce87863bd73658051",
+    "phase2/data/atlas_fullhist/manifest.csv": "5fec67cd905b037c0184a63fbd7a4020ff7b79f8f651fd178895706fc952f90d",
+    "phase2/freeze_rankings.py": "b21eb15a649a60366d011ed1215b48ac8f4531e71b12f535c0ed4ce8c0c24edf",
+    "phase2/oct_image.py": "4bbf2f4527edeb4a45cd5e523d0f1ee6efa09a6d878928d1034c56cacf510943",
+    "phase2/question_eval.py": "1e9e103b43487022de9cd307f8c8a7fca27fb7361a7192529cc9809d03c4f382",
+    "phase2/results/fullhist/dinov2_vits14/embeddings.npz": "75e2d866875ed98aade437c588f14efc5b8df3e73abdf984f697ab63bacde2c9",
+    "phase2/results/fullhist/resnet50/embeddings.npz": "21a9e7783a2b48cd65628d1d3e3b0af3634e8799804535f2f598f39d07765a49"
+  },
+  "note": "Frozen before any Tier B human label existed. Evaluation verifies rankings_sha256."
+}

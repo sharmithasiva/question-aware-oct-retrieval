@@ -57,3 +57,14 @@ python phase2/make_annotation_packet.py --set dev
 - **Never view system rankings, CST/BCVA values or the key while grading.**
 - Several candidates may receive grade 2.
 - If no candidate deserves 2, that is a valid outcome: the harness counts it as "no relevant candidate".
+
+## v2 (current, 2026-10-26)
+
+**Grade the v2 packets, not the v0.1 sheet above.** The protocol and rubric are in `ANNOTATION_PROTOCOL_v2.md`.
+
+- **B1 (visual similarity):** open `v2/dev/B1/index.html` in a browser (Chrome, Edge or Firefox).
+- **B2 (fluid / thickening):** a trained OCT grader only; open `v2/dev/B2/index.html`.
+- **Labels:** 2 / 1 / 0, `U` (uncertain) or `X` (ungradable); a query whose image cannot be judged is marked "not gradable".
+- **Progress:** autosaved in the browser. When finished, click **Download CSV**, save the file as `v2/dev/<B1|B2>/completed_<annotatorID>.csv`, and record its SHA-256 in `ANNOTATION_LOG.md`.
+- **Spreadsheet alternative:** fill `label`, `rationale` and `query_gradable` in a copy of `v2/dev/<B1|B2>/sheet.csv`.
+- **Do not open `keys/`.** It is git-ignored; back it up outside the repository.
