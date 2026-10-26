@@ -53,3 +53,19 @@ Append-only. Record hashes with `sha256sum <file>`.
 - [ ] Optional: a second B1 annotator on the full packet, for κ.
 - [ ] Choose the S5 encoder on dev B1 nDCG@5 (protocol v2 §6) and record it here.
 - [ ] Freeze before held-out. After approval to fetch: fetch and embed the 76 held-out images, then `freeze_rankings.py --set heldout --confirm-heldout-freeze`, generate the held-out packets, grade them blind, and run the evaluation once.
+
+## 2026-10-26: B1 dev annotations completed
+
+- **File:** `v2/dev/B1/completed_1_dev-B1-v2.csv`; SHA-256 `cda4ea5b7c130b4b45de3857f76d177afd015dd56ea4063bbcebe9f7d9b21b29`.
+- **Annotator ID:** `1`. **Role:** `researcher_non_expert`. **Annotation date:** 2026-10-26. All three are as recorded in the file.
+- **Packet:** `dev-B1-v2`, 18 queries, 264 judgments.
+  - Labels: **2** 73, **1** 129, **0** 61, **U** 1, **X** 0; blank 0.
+  - Queries marked not gradable: 0.
+  - Rationales are present for all 203 labels of 2, 1, U or X.
+- **Validation** (read-only, 2026-10-26):
+  - columns are identical to `sheet.csv`;
+  - row IDs and the packet-defined columns are unchanged;
+  - the file joins one-to-one to `keys/v2/dev_B1_key.csv`;
+  - every candidate pool matches the frozen rankings `rankings_tierB_24a90d2768c6`, whose hash was verified.
+- **Single annotator;** no second sheet yet. B1 measures **visual similarity, not clinical relevance**.
+- **Not yet done:** the evaluation (`evaluate_annotations.py`) has not been run on this file, and the S5 encoder choice is not yet recorded. B2 is **not** annotated.
