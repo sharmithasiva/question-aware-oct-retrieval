@@ -89,7 +89,7 @@ def test_cli_end_to_end_with_random_weights(monkeypatch, tmp_path):
         torch.manual_seed(0)
         m = torchvision.models.resnet50(weights=None)
         m.fc = torch.nn.Identity()
-        return m.eval(), 2048
+        return m.to(device).eval(), 2048
     monkeypatch.setattr(OI, "load_encoder", random_resnet)
     out, ref = tmp_path / "out", ROOT / "phase2/results/fullhist/resnet50/embeddings.npz"
     args = ["--subset", str(FULLHIST), "--encoder", "resnet50", "--out", str(out), "--cache-root", str(tmp_path / "c"),
