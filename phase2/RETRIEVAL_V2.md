@@ -224,3 +224,22 @@ improve image-dependent questions still rests on 18 non-expert-graded queries.
 - **v0.1 test needs the key.** `test_dev_packet_sheet_has_no_grades_and_matches_key` fails on a clean clone,
   because the v0.1 key is git-ignored and was not regenerated.
 - **No fine-tuning.** There is no supervision signal beyond 18 graded queries, so none was attempted.
+
+## 9. One-command GPU run and the answer demo (added 2026-10-29)
+
+- **GPU run:** `bash phase2/run_gpu_pipeline.sh` runs the whole ResNet-50 stage on a machine that can reach
+  retinaoct.com and download.pytorch.org, in this order:
+  - checks the plan hash, the train-only split and that no held-out eye is included;
+  - fetches the images (resumable);
+  - runs the reproduction check and **stops** unless `n_common == 73` and `min_cosine ≥ 0.999`;
+  - embeds the subset;
+  - runs `large_eval.py` with central-scan and 5-scan-mean visit embeddings;
+  - writes demo pages.
+- **Answer demo:** `phase2/demo.py` (CLI, `--html` page, `--serve` Gradio form) with `phase2/answer.py`. The hybrid
+  retriever decides; the answer generator only explains.
+  - **Abstentions** are returned verbatim, with no model call.
+  - **Metadata questions** send only structured evidence: visit IDs, week, CST and BCVA.
+  - **Image questions** attach the current visit's and the top-2 retrieved visits' central B-scans, each labelled.
+  - **Backends:** `evidence` (deterministic, no model) or `claude` (Anthropic API, `claude-opus-5-5`, vision; needs
+    `pip install anthropic` and `ANTHROPIC_API_KEY`). The `claude` backend enables the API's server-side refusal
+    fallback (`fallbacks="default"`); a refusal is reported, never replaced with invented text.
