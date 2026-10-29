@@ -69,3 +69,23 @@ Append-only. Record hashes with `sha256sum <file>`.
   - every candidate pool matches the frozen rankings `rankings_tierB_24a90d2768c6`, whose hash was verified.
 - **Single annotator;** no second sheet yet. B1 measures **visual similarity, not clinical relevance**.
 - **Not yet done:** the evaluation (`evaluate_annotations.py`) has not been run on this file, and the S5 encoder choice is not yet recorded. B2 is **not** annotated.
+
+## 2026-10-29: B1 dev evaluation run (frozen rankings)
+
+- **Key:** `keys/v2/dev_B1_key.csv` was absent from this clone (git-ignored). It was **regenerated** with the frozen
+  generator's own `build_category` and the recorded seeds, in a scratch directory. It matches the logged SHA-256
+  `018e34dc2a31c1189c67434df7fd111156caa78ab01c43086fb7477265a5e498` byte for byte (the original was written with
+  CRLF line endings), and the regenerated blank sheet matches `5f0f4b4d...` too. Only the B1 key was regenerated;
+  the B2 key was not. The key is stored in `keys/` (git-ignored) and has not been committed.
+- **Run:** `python phase2/evaluate_annotations.py --set dev --category B1 --sheet phase2/annotations/v2/dev/B1/completed_1_dev-B1-v2.csv`
+  → `phase2/results/question_eval_v2/dev/eval_B1_cda4ea5b_24a90d2768c6/`. Evaluator SHA-256 unchanged
+  (`2d5914ff...`); frozen rankings hash verified (`24a90d27...`). 18/18 queries evaluated; 1 `U` removed from its pool.
+- **Primary nDCG@5 (grade 2):** S1 latest_prior 0.786, S2p CST proxy 0.782, S3S4 ResNet-50 0.802, S3S4 DINOv2
+  0.682, S5 RRF ResNet-50 0.823, S5 RRF DINOv2 0.725, random 0.572. S2 (frozen Phase 1) abstains on 18/18.
+  3 eyes, so no CI; single non-expert annotator; B1 is visual similarity, not clinical relevance.
+- **S5 encoder rule (protocol v2 §6, higher dev B1 nDCG@5, ResNet-50 on a tie):** the rule's outcome is
+  **ResNet-50** (S3S4 0.802 vs 0.682; S5 0.823 vs 0.725). To be confirmed by the study lead before the held-out freeze.
+- **Exposure notice:** the committed blank-sheet sample evaluations `eval_B1_5f0f4b4d_*` and `eval_B2_3c3309ac_*`
+  contain `judgments_joined.csv`, which includes the code → visit mapping (`candidate_visit_id`) for both packets.
+  The **B2 key is therefore readable in the repository**. B2 has not been graded. Before B2 grading, either keep
+  the grader away from `phase2/results/` or regenerate the B2 packet under a new version.

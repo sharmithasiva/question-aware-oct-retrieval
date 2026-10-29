@@ -43,6 +43,12 @@ phase2/                         Phase 2 (all new work; Phase 1 is imported read-
   plot_fullhist.py                per-eye similarity / CST-BCVA figure
   consolidate_metrics.py          rebuilds every reported metric from saved outputs
   question_eval.py                question-conditioned evaluation harness (5 systems)
+  build_scan_manifest.py          offline plan of a 4,685-scan train-eye subset (scan_subset_v1); counts
+  fetch_scan_subset.py            resumable, verified fetch of the planned scans (reuses local images)
+  embed_cached.py                 batched, SHA-256-cached embedding; optional pooling variants
+  hybrid_retriever.py             metadata + image hybrid: eligibility first, abstention preserved, inspectable
+  large_eval.py                   E1/E2-definition, Tier A and post-hoc B1 metrics for any subset
+  RETRIEVAL_V2.md                 stage-2 commands, hybrid policy, results and limitations
   make_annotation_packet.py       blinded annotation packets for human relevance grading
   make_colab_bundle.py            builds the zip the Colab notebook uploads
   data/atlas_subset/              96 verified B-scans (8 eyes x 4 visits x 3 scans) + manifest/provenance
@@ -112,7 +118,11 @@ The benchmark is AI-generated, with limited human review and unverified annotato
 - **Tier A** (CST questions; relevance from the frozen Phase 1 answer keys; 3 dev eyes):
   - On "When was the CST most similar to today?", MRR is `latest_prior` 0.412, ResNet-50 0.338, DINOv2 0.265 and random 0.260.
   - Images do **not** stand in for CST measurements, and the hybrid scores below metadata-only in every category.
-- **Tier B** (image-dependent questions): **NOT EVALUATED**. The blinded dev annotation packet is ready (`phase2/annotations/`), but no human relevance grades exist yet.
+- **Tier B B1** (visual similarity; 18 dev queries, 3 eyes, one non-expert annotator; frozen pre-label rankings):
+  - nDCG@5 is `latest_prior` 0.786, ResNet-50 0.802, ResNet-50 RRF hybrid 0.823, DINOv2 0.682 and random 0.572.
+  - The differences are small and there are too few eyes for a CI, so this is not evidence of improvement.
+  - Details are in `phase2/RETRIEVAL_V2.md`.
+- **Tier B B2** (fluid): **NOT EVALUATED**. No B2 grades exist.
 
 **Next step:** grade the dev Tier B sheet, then fetch, freeze and blindly evaluate the held-out val eyes (protocol §7).
 

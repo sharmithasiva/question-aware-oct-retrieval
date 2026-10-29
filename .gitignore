@@ -9,3 +9,12 @@ phase2/dist/
 
 # Blinded annotation keys: must not be visible to annotators (protocol §4)
 phase2/annotations/keys/
+
+# Larger image subsets (phase2/fetch_scan_subset.py) and embedding caches (phase2/embed_cached.py): rebuildable
+phase2/data/scan_subset_*/images/
+phase2/cache/
+
+# Code -> visit mappings must stay private (annotation protocol v2 §4); never commit joined judgments
+phase2/results/**/judgments_joined.csv
+phase2/results/**/b1_posthoc_per_query.csv
+phase2/results/question_eval_v2/**/eval_*_cda4ea5b_*/per_query_primary.csv

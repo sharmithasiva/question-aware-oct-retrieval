@@ -1,0 +1,55 @@
+{
+  "splits": [
+    "train"
+  ],
+  "scans": [
+    12,
+    18,
+    24,
+    30,
+    36
+  ],
+  "visits_total": 1594,
+  "visits_in_splits": 1008,
+  "eyes_in_splits": 59,
+  "eyes_excluded_list": [
+    29,
+    32,
+    46,
+    81
+  ],
+  "visits_excluded_qc_flag": {
+    "0247GOD_V3": "missing_cst_bcva"
+  },
+  "visits_excluded_ambiguous_scan_index": [],
+  "visit_scan_slots_missing_in_metadata": 0,
+  "planned_scans": 4685,
+  "planned_visits": 937,
+  "planned_eyes": 55,
+  "planned_patients": 48,
+  "patients_with_two_eyes": 7,
+  "by_trial": {
+    "Prime_FULL": {
+      "eyes": 23,
+      "visits": 375,
+      "scans": 1875
+    },
+    "TREX DME": {
+      "eyes": 32,
+      "visits": 562,
+      "scans": 2810
+    }
+  },
+  "scans_per_position": {
+    "12": 937,
+    "18": 937,
+    "24": 937,
+    "30": 937,
+    "36": 937
+  },
+  "visits_with_missing_cst_or_bcva": 0,
+  "name": "scan_subset_v1",
+  "seed": 20261029,
+  "max_scans": 5000,
+  "source": "data/processed/episodes.csv + data/processed/visit_images.csv (local metadata only)"
+}
