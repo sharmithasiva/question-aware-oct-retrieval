@@ -32,8 +32,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from oct_retrieval import intent as I  # noqa: E402  (frozen, read-only: operation names only)
 
 MODEL = "claude-opus-5-5"
-TOP_N = 3            # retrieved visits passed as evidence (similarity-type rankings)
-TOP_IMAGES = 2       # retrieved visits whose image is attached (image routes only)
+TOP_N = 3            # retrieved visits passed as evidence (similarity-type rankings); on image routes each one's
+                     # central B-scan is attached too, so the text evidence and the image payload name the same visits
 IMAGE_ROUTES = ("image", "image+proxy_rrf")
 # Operations whose ranking is "visits meeting a hard condition first, then the rest": only rank 1 is evidence.
 FILTER_OPS = (I.COMPARE_TO_CURRENT, I.THRESHOLD_FROM_BASELINE, I.LAST_EVENT)
@@ -107,6 +107,8 @@ def build_evidence(result, episodes: pd.DataFrame, images: dict[str, Path], ques
               images=[], ranking_basis=ROUTE_BASIS.get(result.route, ""), n_candidates=len(result.candidates),
               guidance=ABSTENTION_GUIDANCE.get(result.status, "") if result.status != "retrieved" else "")
     ev["eye_id"] = int(ep.loc[result.query_visit_id, "eye_id"])
+    send_images = result.route in IMAGE_ROUTES
+    ev["current"]["image_attached"] = send_images and result.query_visit_id in images
     if result.final_ranking is None:
         return ev
     n = 1 if (result.route == "metadata" and op in FILTER_OPS) else TOP_N
@@ -115,14 +117,48 @@ def build_evidence(result, episodes: pd.DataFrame, images: dict[str, Path], ques
                                 "not passed on because lower ranks may not meet it.")
     for rank, vid in enumerate(result.final_ranking[:n], 1):
         row = _visit_row(ep, vid)
-        row.update(rank=rank, role="selected" if rank == 1 else "runner-up",
+        row.update(rank=rank, role="selected" if rank == 1 else "runner-up", image_attached=send_images and vid in images,
                    image_cosine=None if vid not in result.image_scores else round(result.image_scores[vid], 4))
         ev["retrieved"].append(row)
-    if result.route in IMAGE_ROUTES:
-        want = [result.query_visit_id] + result.final_ranking[:TOP_IMAGES]
-        ev["images"] = [dict(visit_id=v, role="current" if v == result.query_visit_id else "retrieved",
-                             path=str(images[v])) for v in want if v in images]
+    # The image payload is derived from the evidence rows, never from the ranking separately.
+    ev["images"] = [dict(visit_id=v["visit_id"], role=role, path=str(images[v["visit_id"]]))
+                    for v, role in [(ev["current"], "current")] + [(r, "retrieved") for r in ev["retrieved"]]
+                    if v["image_attached"]]
+    problems = evidence_inconsistencies(ev)
+    assert not problems, f"inconsistent evidence: {problems}"
     return ev
+
+
+def evidence_inconsistencies(ev: dict) -> list[str]:
+    """Mismatches between the evidence rows and the image payload (empty list = consistent)."""
+    rows = [ev["current"]] + ev["retrieved"]
+    flagged = [v["visit_id"] for v in rows if v.get("image_attached")]
+    sent = [i["visit_id"] for i in ev["images"]]
+    problems = []
+    if sent != flagged:
+        problems.append(f"images sent {sent} != visits marked image_attached {flagged}")
+    if set(sent) - {v["visit_id"] for v in rows}:
+        problems.append(f"images of visits outside the evidence: {sorted(set(sent) - {v['visit_id'] for v in rows})}")
+    if ev["route"] not in IMAGE_ROUTES and sent:
+        problems.append("images sent on a non-image route")
+    return problems
+
+
+def evidence_summary(ev: dict) -> str:
+    """What was actually given to the answer generator, by visit ID."""
+    ids = [v["visit_id"] for v in ev["retrieved"]]
+    text = f"{len(ids)} earlier visit(s) as text: {', '.join(ids) or 'none'}"
+    if ev["route"] in IMAGE_ROUTES:
+        cur = ev["current"]["visit_id"] if ev["current"]["image_attached"] else "none"
+        prior = [i["visit_id"] for i in ev["images"] if i["role"] == "retrieved"]
+        missing = [v["visit_id"] for v in ev["retrieved"] if not v["image_attached"]]
+        text += (f"; B-scans attached: current visit {cur} and {len(prior)} earlier visit(s)"
+                 f"{': ' + ', '.join(prior) if prior else ''}")
+        if missing:
+            text += f"; no B-scan available for {', '.join(missing)}"
+    else:
+        text += "; no B-scans (metadata route)"
+    return text
 
 
 def _fmt(v: dict) -> str:
@@ -140,7 +176,9 @@ def evidence_text(ev: dict) -> str:
         lines.append(f"Retrieved earlier visits ({ev['n_candidates']} eligible earlier visits of this eye), best first:")
         for v in ev["retrieved"]:
             sim = "" if v["image_cosine"] is None else f"; image-embedding cosine {v['image_cosine']:.3f}"
-            lines.append(f"  {v['rank']}. [{v['role']}] {_fmt(v)}{sim}")
+            img = "" if ev["route"] not in IMAGE_ROUTES else (
+                "; B-scan attached" if v["image_attached"] else "; no B-scan available")
+            lines.append(f"  {v['rank']}. [{v['role']}] {_fmt(v)}{sim}{img}")
     else:
         lines.append("No earlier visit was retrieved.")
     if ev["images"]:
@@ -250,6 +288,6 @@ def answer(ev: dict, backend: str = "evidence", client=None) -> dict:
     else:
         res = answer_claude(ev, client) if backend == "claude" else dict(
             status="answered", text=answer_evidence_only(ev), warnings=[], error=None)
-        used = f"{len(ev['retrieved'])} retrieved visit(s)" + (f", {len(ev['images'])} B-scan(s)" if ev["images"] else "")
+        used = evidence_summary(ev)
     return dict(status=res["status"], answer=res["text"], backend=backend, evidence_used=used,
                 warnings=res["warnings"], error=res["error"], disclaimer=DISCLAIMER)

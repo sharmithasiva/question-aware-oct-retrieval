@@ -84,12 +84,12 @@ def test_image_question_uses_image_route_with_labelled_scans_and_basis(demo):
     ev = out["evidence"]
     assert ev["route"] == "image+proxy_rrf" and ev["status"] == "retrieved"
     assert "does not detect fluid" in ev["ranking_basis"]
-    assert [i["role"] for i in ev["images"]] == ["current", "retrieved", "retrieved"]
+    assert [i["role"] for i in ev["images"]] == ["current", "retrieved", "retrieved", "retrieved"]
     assert ev["images"][0]["visit_id"] == "9901AOD_V8"
     assert {v["visit_id"] for v in ev["retrieved"]} <= set(out["result"].candidates)
     req = A.claude_request(ev)
     imgs = [b for b in req["messages"][0]["content"] if b["type"] == "image"]
-    assert len(imgs) == 3 and all(b["source"]["media_type"] == "image/png" for b in imgs)
+    assert len(imgs) == 4 and all(b["source"]["media_type"] == "image/png" for b in imgs)
     assert base64.b64decode(imgs[0]["source"]["data"])[:4] == b"\x89PNG"
 
 
@@ -213,3 +213,37 @@ def test_evidence_only_backend_and_demo_outputs(demo):
         demo.run(IMAGE_Q, 999)
     with pytest.raises(ValueError):
         demo.run("  ", 901)
+
+
+# --- evidence / image-payload consistency (regression) ----------------------------------------------------------
+
+def test_text_evidence_image_payload_and_summary_agree(demo):
+    ev = demo.run(IMAGE_Q, 901)["evidence"]
+    rows = [v["visit_id"] for v in ev["retrieved"]]
+    req = A.claude_request(ev)["messages"][0]["content"]
+    labelled = [b["text"].split()[1] for b in req if b["type"] == "text" and b["text"].startswith("B-scan:")]
+    assert labelled == [i["visit_id"] for i in ev["images"]] == [ev["current"]["visit_id"]] + rows
+    assert sum(b["type"] == "image" for b in req) == len(labelled)
+    assert A.evidence_inconsistencies(ev) == []
+
+
+def test_missing_image_is_shown_not_silently_dropped(demo):
+    ranked = demo.run(IMAGE_Q, 901)["evidence"]["retrieved"]
+    missing = ranked[1]["visit_id"]
+    del demo.images[missing]                                   # the embedding exists, the image file does not
+    out = demo.run(IMAGE_Q, 901)
+    ev, a = out["evidence"], out["answer"]
+    assert [v["visit_id"] for v in ev["retrieved"]] == [v["visit_id"] for v in ranked]     # ranking unchanged
+    assert missing not in [i["visit_id"] for i in ev["images"]] and A.evidence_inconsistencies(ev) == []
+    assert f"no B-scan available for {missing}" in a["evidence_used"]
+    assert "no B-scan available" in A.evidence_text(ev) and "<td>no</td>" in D.to_html(out)
+
+
+def test_inconsistency_check_catches_the_reported_class_of_mismatch(demo):
+    ev = demo.run(IMAGE_Q, 901)["evidence"]
+    bad = dict(ev, images=ev["images"][:-1])                   # last listed visit's scan not sent (the old bug)
+    assert A.evidence_inconsistencies(bad)
+    meta = demo.run(CST_SIMILAR_Q, 901)["evidence"]
+    assert meta["images"] == [] and not any(v["image_attached"] for v in [meta["current"]] + meta["retrieved"])
+    assert "no B-scans (metadata route)" in A.evidence_summary(meta)
+    assert A.evidence_inconsistencies(dict(meta, images=ev["images"]))   # images on a metadata route are flagged

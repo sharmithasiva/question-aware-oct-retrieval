@@ -33,12 +33,12 @@ def evidence(question, eye=25, visit=None):
 
 def test_image_route_sends_labelled_current_and_top_images():
     ev = evidence(D.EXAMPLES[0])
-    assert ev["route"] == "image+proxy_rrf" and [i["role"] for i in ev["images"]] == ["current", "retrieved", "retrieved"]
+    assert ev["route"] == "image+proxy_rrf" and [i["role"] for i in ev["images"]] == ["current", "retrieved", "retrieved", "retrieved"]
     req = A.claude_request(ev)
     assert req["model"] == "claude-opus-5-5" and req["fallbacks"] == "default" and "Do not invent" in req["system"]
     blocks = req["messages"][0]["content"]
     imgs = [b for b in blocks if b["type"] == "image"]
-    assert len(imgs) == 3 and all(b["source"]["media_type"] == "image/webp" for b in imgs)
+    assert len(imgs) == 4 and all(b["source"]["media_type"] == "image/webp" for b in imgs)
     assert base64.b64decode(imgs[0]["source"]["data"])[:4] == b"RIFF"
     assert blocks[0]["text"].startswith("B-scan: 0210MOD_V27 (current")    # each image is labelled before it
     c = FakeClient()
@@ -78,3 +78,19 @@ def test_demo_pages_render_for_every_example(q):
         page = D.to_html(out, DEMO.source)
         assert page.startswith("<!doctype html>") and html.escape(out["evidence"]["question"]) in page
         assert "<td>None</td>" not in page
+
+
+def test_regression_eye25_v27_evidence_and_images_name_the_same_visits():
+    """Reported mismatch: V23 was listed as evidence and in 'Evidence used' but its B-scan was not sent."""
+    out = DEMO.run(D.EXAMPLES[0], 25, "0210MOD_V27")
+    ev, a = out["evidence"], out["answer"]
+    text_ids = [v["visit_id"] for v in ev["retrieved"]]
+    sent = [i["visit_id"] for i in ev["images"] if i["role"] == "retrieved"]
+    assert text_ids == ["0210MOD_V26", "0210MOD_V25", "0210MOD_V23"] == sent      # ranking itself unchanged
+    assert A.evidence_inconsistencies(ev) == []
+    labels = [b["text"] for b in A.claude_request(ev)["messages"][0]["content"] if b["type"] == "text"]
+    assert [l.split()[1] for l in labels if l.startswith("B-scan:")] == ["0210MOD_V27"] + sent
+    used = a["answer"].split("Evidence used:")[1]
+    assert all(v in used for v in text_ids) and all(v in a["evidence_used"] for v in ["0210MOD_V27"] + text_ids)
+    assert "Attached B-scans (central scan of each visit, in this order): 0210MOD_V27 (current), " \
+           "0210MOD_V26 (retrieved), 0210MOD_V25 (retrieved), 0210MOD_V23 (retrieved)" in A.evidence_text(ev)

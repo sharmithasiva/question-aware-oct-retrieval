@@ -122,10 +122,10 @@ def to_html(out: dict, source: dict | None = None) -> str:
     rows = "".join(
         f"<tr><td>{v['rank']}</td><td>{e(v['role'])}</td><td>{e(v['visit_id'])}</td><td>{e(v['visit_label'])}</td>"
         f"<td>{_fmt_num(v['week'])}</td><td>{_fmt_num(v['cst'], ' µm')}</td><td>{_fmt_num(v['bcva'])}</td>"
-        f"<td>{_fmt_cos(v['image_cosine'])}</td></tr>"
+        f"<td>{_fmt_cos(v['image_cosine'])}</td><td>{'yes' if v['image_attached'] else 'no'}</td></tr>"
         for v in ev["retrieved"])
     evidence_table = ("<table><tr><th>Rank</th><th>Role</th><th>Visit</th><th>Label</th><th>Week</th><th>CST</th>"
-                      "<th>BCVA (letters)</th><th>Image-embedding cosine</th></tr>" + rows + "</table>") if rows else \
+                      "<th>BCVA (letters)</th><th>Image-embedding cosine</th><th>B-scan sent</th></tr>" + rows + "</table>") if rows else \
         "<p>No earlier visit was selected.</p>"
     table = _ranks(r)
     table = table.astype(object).where(table.notna(), "")
