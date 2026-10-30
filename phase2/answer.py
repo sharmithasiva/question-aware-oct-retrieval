@@ -35,8 +35,10 @@ MODEL = "claude-opus-5-5"
 TOP_N = 3            # retrieved visits passed as evidence (similarity-type rankings); on image routes each one's
                      # central B-scan is attached too, so the text evidence and the image payload name the same visits
 IMAGE_ROUTES = ("image", "image+proxy_rrf")
-# Operations whose ranking is "visits meeting a hard condition first, then the rest": only rank 1 is evidence.
-FILTER_OPS = (I.COMPARE_TO_CURRENT, I.THRESHOLD_FROM_BASELINE, I.LAST_EVENT)
+# Operations whose answer is one visit (hard conditions: qualifying visits first, then the rest; anchors: previous /
+# baseline visit): only rank 1 is passed as evidence.
+FILTER_OPS = (I.COMPARE_TO_CURRENT, I.THRESHOLD_FROM_BASELINE, I.LAST_EVENT,
+              I.ANCHOR_PREVIOUS, I.ANCHOR_BASELINE)   # anchors: the answer IS one visit; older visits add nothing
 MEDIA_TYPES = {".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 DISCLAIMER = ("Research prototype on OLIVES data. Not clinically validated and not a diagnosis or treatment "
@@ -96,8 +98,17 @@ does not answer the question, say so plainly. The message may also contain discl
 (OLIVES per-B-scan annotations, given as the fraction of a visit's labelled B-scans) and computed facts such as a \
 CST change; use them as stated, and repeat any disclosure that limits the answer.
 
+Keep three kinds of evidence apart and say which one each statement rests on: (1) what you visually observe in the \
+attached B-scans (your own observation, not validated), (2) dataset finding labels (OLIVES annotations, given in the \
+message), (3) recorded metadata (CST, BCVA, visit order). Never infer disease progression or clinical similarity \
+from an image-similarity score. If CST is used as a proxy (for edema or anatomy), say so and do not call it an edema \
+or anatomy grade. An image marked UPLOADED SCAN is external: it has no patient, visit, date or history unless the \
+message says it matches a dataset visit, so do not attribute any history to it. Say plainly what cannot be \
+determined from the evidence.
+
 This is a research prototype, not clinical advice: do not give a diagnosis or a treatment recommendation. Answer \
-in 3 to 6 sentences. End with one line starting "Evidence used:" that lists the visit IDs you relied on."""
+in 3 to 6 sentences of plain prose. End with one line starting "Evidence used:" that lists the visit IDs you relied \
+on (write UPLOADED_SCAN for an uploaded image)."""
 
 VISIT_ID_RE = re.compile(r"\b(?:\d{4}[A-Z]{3}_V\d+|\d{2}-\d{3}_W\d+)\b")
 MEASURE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:µm|um|μm|microns?|micrometres?|micrometers?|letters?)\b", re.I)
@@ -162,7 +173,8 @@ def build_unified_evidence(u, episodes: pd.DataFrame, images: dict[str, Path]) -
               n_candidates=len(u.candidates), eligible=list(u.candidates), eye_id=int(u.eye_id),
               components=[dict(name=c.name, status=c.status, explanation=c.explanation) for c in u.components],
               disclosures=list(u.disclosures), facts=[], biomarkers=list(u.biomarkers),
-              guidance=ABSTENTION_GUIDANCE.get(u.status, "") if u.status != "retrieved" else "")
+              guidance=ABSTENTION_GUIDANCE.get(u.status, "") if u.status != "retrieved" else "",
+              interpreted_as=getattr(u, "interpreted_as", None))
     ev["ranking_basis"] = CATEGORY_BASIS.get(u.category) or ROUTE_BASIS.get(ev["route"], "")
     ev["current"]["image_attached"] = False
     if u.abstained:
@@ -208,13 +220,18 @@ def build_unified_evidence(u, episodes: pd.DataFrame, images: dict[str, Path]) -
     return ev
 
 
+def _rows(ev: dict) -> list[dict]:
+    """Every evidence item in payload order: uploaded scan (if any), today's visit (if any), retrieved visits."""
+    return [x for x in (ev.get("upload"), ev.get("current")) if x] + ev["retrieved"]
+
+
 def _uses_images(ev: dict) -> bool:
     return ev.get("uses_images", ev["route"] in IMAGE_ROUTES)
 
 
 def evidence_inconsistencies(ev: dict) -> list[str]:
     """Mismatches between the evidence rows and the image payload (empty list = consistent)."""
-    rows = [ev["current"]] + ev["retrieved"]
+    rows = _rows(ev)
     flagged = [v["visit_id"] for v in rows if v.get("image_attached")]
     sent = [i["visit_id"] for i in ev["images"]]
     problems = []
@@ -225,7 +242,8 @@ def evidence_inconsistencies(ev: dict) -> list[str]:
     if not _uses_images(ev) and sent:
         problems.append("images sent on a route that does not use images")
     labelled = {b["visit_id"] for b in ev.get("biomarkers", [])}
-    allowed = {ev["current"]["visit_id"]} | set(ev.get("eligible", [])) if "eligible" in ev else None
+    allowed = ({ev["current"]["visit_id"]} | set(ev.get("eligible", []))) if ("eligible" in ev and ev.get("current")) \
+        else None
     if allowed is not None and labelled - allowed:
         problems.append(f"finding labels of non-eligible visits: {sorted(labelled - allowed)}")
     return problems
@@ -236,10 +254,11 @@ def evidence_summary(ev: dict) -> str:
     ids = [v["visit_id"] for v in ev["retrieved"]]
     text = f"{len(ids)} earlier visit(s) as text: {', '.join(ids) or 'none'}"
     if _uses_images(ev):
-        cur = ev["current"]["visit_id"] if ev["current"]["image_attached"] else "none"
+        cur = ev["current"]["visit_id"] if ev.get("current") and ev["current"]["image_attached"] else "none"
         prior = [i["visit_id"] for i in ev["images"] if i["role"] == "retrieved"]
         missing = [v["visit_id"] for v in ev["retrieved"] if not v["image_attached"]]
-        text += (f"; B-scans attached: current visit {cur} and {len(prior)} earlier visit(s)"
+        up = "uploaded scan, " if ev.get("upload") and ev["upload"].get("image_attached") else ""
+        text += (f"; B-scans attached: {up}current visit {cur} and {len(prior)} earlier visit(s)"
                  f"{': ' + ', '.join(prior) if prior else ''}")
         if missing:
             text += f"; no B-scan available for {', '.join(missing)}"
@@ -264,23 +283,33 @@ def _fmt_labels(b: dict) -> str:
 
 
 def evidence_text(ev: dict) -> str:
-    lines = [f"Question: {ev['question']}", f"Eye: {ev['eye_id']}", f"Current visit: {_fmt(ev['current'])}"]
+    lines = [f"Question: {ev['question']}"]
+    if ev.get("upload"):
+        u = ev["upload"]
+        lines.append("UPLOADED SCAN: " + (f"byte/pixel-identical to the dataset B-scan of visit {u['matched_visit']} "
+                                          f"(eye {u['matched_eye']})" if u.get("matched_visit") else
+                                          "external image, not linked to any patient, eye, visit or date"))
+    if ev.get("eye_id") is not None:
+        lines.append(f"Eye: {ev['eye_id']}")
+    if ev.get("current"):
+        lines.append(f"Current visit: {_fmt(ev['current'])}")
     if "category" in ev:
         lines.append(f"Question category: {ev['category']}; evidence sources: "
                      + ("; ".join(f"{c['name']} ({c['status']}): {c['explanation']}" for c in ev["components"])
                         or "none"))
-    lines += [f"Retrieval route: {ev['route']} (status {ev['status']}{'; ' + ev['reason'] if ev['reason'] else ''})",
+    lines += [f"Retrieval route: {ev['route']} (status {ev['status']}{'; ' + ev['reason'] if ev['reason'] else ''})"
+              + (f"; interpreted as: {ev['interpreted_as']!r}" if ev.get("interpreted_as") else ""),
               f"How visits were selected: {ev['ranking_basis']}"]
     lines += [f"Disclosure: {d}" for d in ev.get("disclosures", [])]
     if ev["retrieved"]:
-        lines.append(f"Retrieved earlier visits ({ev['n_candidates']} eligible earlier visits of this eye), best first:")
+        lines.append(f"Retrieved visits ({ev['n_candidates']} candidate visits of this eye), best first:")
         for v in ev["retrieved"]:
             sim = "" if v["image_cosine"] is None else f"; image-embedding cosine {v['image_cosine']:.3f}"
             img = "" if not _uses_images(ev) else (
                 "; B-scan attached" if v["image_attached"] else "; no B-scan available")
             src = f" via {', '.join(v['sources'])}" if v.get("sources") else ""
             lines.append(f"  {v['rank']}. [{v['role']}{src}] {_fmt(v)}{sim}{img}")
-    else:
+    elif ev.get("category") != "scan_visual":
         lines.append("No earlier visit was retrieved.")
     lines += [f"Fact: {f}" for f in ev.get("facts", [])]
     if ev.get("biomarkers"):
@@ -303,8 +332,19 @@ def _abstention(ev: dict) -> str:
 def answer_evidence_only(ev: dict) -> str:
     if ev["status"] != "retrieved":
         return _abstention(ev)
-    top = ev["retrieved"][0]
     cat = ev.get("category")
+    if cat == "scan_visual":
+        labs = "; ".join(_fmt_labels(b) for b in ev.get("biomarkers", []))
+        return ("Evidence-only mode cannot interpret images: choose a vision-language model to get a visual "
+                "description of this scan." + (f" Dataset finding labels for this scan's visit: {labs}." if labs else
+                                               " No dataset finding labels exist for this scan.")
+                + "\nEvidence used: " + ", ".join(r["visit_id"] for r in _rows(ev)))
+    top = ev["retrieved"][0]
+    if cat == "upload_similarity":
+        return (f"The embedded visit of eye {ev['eye_id']} most similar to the uploaded scan by image-embedding cosine "
+                f"is {_fmt(top)} (cosine {top['image_cosine']:.3f}). This is generic-encoder similarity, not clinical "
+                "similarity, and does not show that the scan belongs to this eye. (Evidence-only mode: no language "
+                "model was used.)\nEvidence used: UPLOADED_SCAN, " + ", ".join(v["visit_id"] for v in ev["retrieved"]))
     if cat == "pathology":
         lab = next((b for b in ev["biomarkers"] if b["visit_id"] == top["visit_id"]), None)
         return (f"From the OLIVES finding labels, the answer is {top['visit_id']} (visit {top['visit_label']})"
@@ -334,12 +374,25 @@ def _image_block(path: str) -> dict:
                                         "data": data}}
 
 
+def image_label(im: dict) -> str:
+    if im["role"] == "uploaded":
+        return "B-scan: UPLOADED_SCAN (uploaded by the user)"
+    return f"B-scan: {im['visit_id']} ({im['role']} visit)"
+
+
+def request_parts(ev: dict) -> list[dict]:
+    """Provider-neutral user content: each image preceded by its label, then the evidence text. Every VLM backend
+    receives exactly this (and SYSTEM), so the evidence package is the only thing a model sees."""
+    parts = []
+    for im in ev["images"]:
+        parts += [dict(type="text", text=image_label(im)), dict(type="image", path=im["path"])]
+    return parts + [dict(type="text", text=evidence_text(ev))]
+
+
 def claude_request(ev: dict) -> dict:
     """Request body for the Anthropic Messages API (built separately so it can be tested without a network)."""
-    content = []
-    for im in ev["images"]:
-        content += [{"type": "text", "text": f"B-scan: {im['visit_id']} ({im['role']} visit)"}, _image_block(im["path"])]
-    content.append({"type": "text", "text": evidence_text(ev)})
+    content = [_image_block(p["path"]) if p["type"] == "image" else {"type": "text", "text": p["text"]}
+               for p in request_parts(ev)]
     return dict(model=MODEL, max_tokens=16000, system=SYSTEM, output_config={"effort": "medium"},
                 betas=["server-side-fallback-2026-07-01"], fallbacks="default",
                 messages=[{"role": "user", "content": content}])
@@ -352,8 +405,8 @@ def redact(msg: str, limit: int = 300) -> str:
 
 def check_grounding(text: str, ev: dict) -> list[str]:
     """Warnings where the model's text is not supported by the evidence it was given (empty list = no issue)."""
-    visits = [ev["current"]] + ev["retrieved"]
-    known = {v["visit_id"] for v in visits} | {b["visit_id"] for b in ev.get("biomarkers", [])}
+    visits = [v for v in _rows(ev) if "cst" in v]
+    known = {v["visit_id"] for v in _rows(ev)} | {b["visit_id"] for b in ev.get("biomarkers", [])}
     warns = []
     unknown = sorted(set(VISIT_ID_RE.findall(text)) - known)
     if unknown:
@@ -399,15 +452,45 @@ def answer_claude(ev: dict, client=None) -> dict:
     return dict(status="answered", text=text, warnings=warnings, error=None)
 
 
-def answer(ev: dict, backend: str = "evidence", client=None) -> dict:
-    if backend not in ("evidence", "claude"):
+def answer_vlm(ev: dict, vlm) -> dict:
+    """Any vision-language model behind an adapter with generate(system, parts) -> object with .text, .finish
+    ('stop' | 'length' | 'refusal' | 'error') and .error. Same result handling and grounding as answer_claude."""
+    fail = "No generated answer: {}. The retrieved evidence is shown unchanged; no answer was substituted."
+    try:
+        reply = vlm.generate(SYSTEM, request_parts(ev))
+    except Exception as ex:                                   # adapters should not raise; never fabricate if they do
+        err = f"{type(ex).__name__}: {redact(ex)}"
+        return dict(status="model_error", text=fail.format(f"the model call failed ({err})"), warnings=[], error=err)
+    if reply.finish == "error":
+        return dict(status="model_error", text=fail.format(f"the model call failed ({redact(reply.error)})"),
+                    warnings=[], error=redact(reply.error))
+    if reply.finish == "refusal":
+        return dict(status="model_refused", text=fail.format("the model declined to answer"), warnings=[],
+                    error="refusal")
+    text = (reply.text or "").strip()
+    if not text:
+        return dict(status="model_error", text=fail.format("the model returned no text"), warnings=[],
+                    error="empty response")
+    warnings = check_grounding(text, ev)
+    if reply.finish == "length":
+        return dict(status="model_incomplete", text=text, error="max_tokens",
+                    warnings=["the answer was cut off at the output limit and is incomplete"] + warnings)
+    return dict(status="answered", text=text, warnings=warnings, error=None)
+
+
+def answer(ev: dict, backend: str = "evidence", client=None, vlm=None) -> dict:
+    """backend: 'evidence' (no model), 'claude' (Anthropic SDK; `client` optional) or 'vlm' (adapter in `vlm`).
+    An abstaining retrieval is answered with its abstention and never reaches any model."""
+    if backend not in ("evidence", "claude", "vlm"):
         raise ValueError(f"unknown backend {backend!r}")
+    if backend == "vlm" and vlm is None:
+        raise ValueError("backend 'vlm' needs an adapter")
     if ev["status"] != "retrieved":
         res = dict(status="abstained", text=_abstention(ev), warnings=[], error=None)
         backend, used = "none", "abstained: no model call"
     else:
-        res = answer_claude(ev, client) if backend == "claude" else dict(
-            status="answered", text=answer_evidence_only(ev), warnings=[], error=None)
+        res = (answer_claude(ev, client) if backend == "claude" else answer_vlm(ev, vlm) if backend == "vlm"
+               else dict(status="answered", text=answer_evidence_only(ev), warnings=[], error=None))
         used = evidence_summary(ev)
     return dict(status=res["status"], answer=res["text"], backend=backend, evidence_used=used,
                 warnings=res["warnings"], error=res["error"], disclaimer=DISCLAIMER)

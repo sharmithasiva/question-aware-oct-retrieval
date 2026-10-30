@@ -20,7 +20,19 @@ The frozen parser (`intent.parse_intent`) and retriever (`intent_retrieval.retri
                     component (a frozen metadata intent, or the       metadata clause; otherwise the frozen
                     change of CST/BCVA from the image-selected        clarification abstention is kept
                     visit to today)
+  anatomy_proxy     metadata CST rule (frozen v1 'best/worst anatomy'  "best/worst anatomy": no anatomy grade exists;
+                    = min/max CST) as a DISCLOSED proxy + B-scans      Phase 1 defines it by CST, which is disclosed
+  trajectory        visit order (baseline, previous visit, today)  "how has the anatomy/retina changed over time":
+                    + recorded CST changes + B-scans                  not a ranking; changes are measured or observed
   abstain           none                                           every other frozen abstention, unchanged
+
+Parser gaps handled here, each recorded in UnifiedResult.interpreted_as and disclosed (the frozen parser is not edited):
+  * a similarity SEARCH that the frozen parser reads as "previous visit" ("which previous visit is most similar to
+    this one?") is routed to image similarity;
+  * "largest/biggest increase|rise|drop in CST/BCVA" is mapped to the frozen canonical "largest consecutive ... "
+    question; "best/worst anatomy" to the frozen CST extremum (anatomy_proxy);
+  * a previous-visit / baseline comparison that mentions the scan or anatomy keeps the frozen metadata selection and
+    additionally attaches the B-scans for visual comparison (ranking unchanged).
 
 Hard rules: candidates are always the strictly earlier visits of the same eye (frozen VisitMemory); biomarker labels
 are read only for those visits and today's; image similarity never reorders a metadata ranking and never replaces an
@@ -68,6 +80,20 @@ FINDINGS = [
     (r"\bshrm\b", ("shrm",), "subretinal hyperreflective material"),
     (r"\bfluid\b", ("fluid_irf", "fluid_srf"), "retinal fluid (IRF or SRF)"),
 ]
+SIM_SEARCH_RE = re.compile(r"\b(most|more|very) similar\b|\bsimilar to\b|\blook(s|ed)?( most)? (like|similar)\b"
+                           r"|\bresembl\w*", re.I)
+SCAN_RE = re.compile(r"\b(scan|scans|oct|b-?scans?|images?|anatom\w*|appearance|morpholog\w*)\b", re.I)
+EXTENT_RE = re.compile(r"\b(largest|biggest|greatest|maximum|max|steepest)\b[^.?!]*\b(increase|rise|jump|gain|growth|"
+                       r"decrease|drop|fall|decline|reduction|loss)\b", re.I)
+DOWN_RE = re.compile(r"\b(decrease|drop|fall|decline|reduction|loss)\b", re.I)
+ANATOMY_RE = re.compile(r"\banatom\w*", re.I)
+BEST_RE = re.compile(r"\bbest\b|\bhealthiest\b|\bmost normal\b", re.I)
+WORST_RE = re.compile(r"\bworst\b|\bleast normal\b", re.I)
+TRAJECTORY_RE = re.compile(r"\bover time\b|\bacross (all |the )?visits\b|\bprogress\w*|\btrajector\w*|\bcourse\b"
+                           r"|\bevolv\w*|\bhistory\b", re.I)
+CANON_SIMILAR = "Which earlier visit's OCT looks most like today's?"
+CANON_BASELINE = "How has the retina changed since baseline?"
+CANON_PREVIOUS = "Compare with the previous visit."
 FIRST_RE = re.compile(r"\bfirst\b|\bearliest\b|\bappear\w*|\bstart\w*|\bbegin\w*|\bonset\b", re.I)
 LAST_RE = re.compile(r"\blast\b|\blatest\b|\bmost recent\b", re.I)
 MOST_RE = re.compile(r"\bworst\b|\bmost\b|\bhighest\b|\bmaximum\b|\blargest\b|\bmax\b", re.I)
@@ -99,6 +125,7 @@ class UnifiedResult:
     uses_images: bool
     disclosures: list[str] = field(default_factory=list)
     biomarkers: list[dict] = field(default_factory=list)
+    interpreted_as: str | None = None     # canonical question given to the frozen parser, when the router rewrote it
 
     @property
     def abstained(self) -> bool:
@@ -140,9 +167,14 @@ class QuestionAwareRetriever:
     def classify(self, question: str) -> tuple[str, dict]:
         p = I.parse_intent(question)
         finding = match_finding(question)
+        anchors = (I.ANCHOR_PREVIOUS, I.ANCHOR_BASELINE)
         if p.task == I.RETRIEVE:
+            if p.operation in anchors and p.target is None and SIM_SEARCH_RE.search(question):
+                return "image_similarity", dict(canonical=CANON_SIMILAR)
             if p.target == "cst" and EDEMA_RE.search(question) and not EXPLICIT_CST_RE.search(question):
                 return "edema_proxy", {}
+            if p.operation in anchors and SCAN_RE.search(question):
+                return "metadata", dict(visual=True)
             return "metadata", {}
         if finding is not None and p.task in (I.UNSUPPORTED_IMAGE, I.CLARIFY):
             return "pathology", dict(columns=finding[0], label=finding[1], op=pathology_operation(question))
@@ -161,6 +193,17 @@ class QuestionAwareRetriever:
             mixed = self._split_mixed(question)
             if mixed:
                 return "mixed", mixed
+            if len(self._clauses(question)) == 1:
+                if p.target in ("cst", "bcva") and EXTENT_RE.search(question):
+                    d = "decrease" if DOWN_RE.search(question) else "increase"
+                    return "metadata", dict(canonical=f"What was the largest consecutive {p.target.upper()} {d}?")
+                if ANATOMY_RE.search(question) and (BEST_RE.search(question) or WORST_RE.search(question)):
+                    best = bool(BEST_RE.search(question))
+                    return "anatomy_proxy", dict(canonical="When was CST lowest?" if best else "When was CST highest?",
+                                                 best=best)
+                if TRAJECTORY_RE.search(question) and (SCAN_RE.search(question) or re.search(r"\bretina\w*", question,
+                                                                                               re.I)):
+                    return "trajectory", {}
         return "abstain", {}
 
     @staticmethod
@@ -196,14 +239,33 @@ class QuestionAwareRetriever:
         base = dict(question=question, eye_id=int(eye_id), query_visit_id=query_visit_id, category=category,
                     intent=f"{p.task}/{p.operation}/{p.target}", candidates=cands)
 
-        if category in ("metadata", "edema_proxy", "image_similarity", "abstain"):
-            h = self.hybrid.retrieve(question, eye_id, query_visit_id)
+        if category in ("metadata", "edema_proxy", "image_similarity", "anatomy_proxy", "abstain"):
+            text = info.get("canonical", question)
+            h = self.hybrid.retrieve(text, eye_id, query_visit_id)
             name = "image_similarity" if h.route in ("image", "image+proxy_rrf") else "metadata"
             why = h.reason or (f"frozen Phase 1 metadata rule {h.intent} over the eye's earlier visits"
                                if name == "metadata" else "")
             comp = Component(name, h.status, why, h.final_ranking, hybrid=h)
             u = UnifiedResult(**base, status=h.status, reason=h.reason, components=[comp],
-                              final_ranking=h.final_ranking, uses_images=name == "image_similarity")
+                              final_ranking=h.final_ranking, uses_images=name == "image_similarity",
+                              interpreted_as=info.get("canonical"))
+            if u.interpreted_as:
+                u.intent = h.intent
+                u.disclosures.append(f"The question was interpreted as: \"{u.interpreted_as}\".")
+            if info.get("visual") and not u.abstained:
+                u.uses_images = True
+                u.disclosures.append("The visit was selected by visit order (frozen metadata rule), not by image "
+                                     "similarity. B-scans are attached so visible differences can be described; any "
+                                     "description is a visual observation of single central B-scans.")
+            if category == "anatomy_proxy":
+                u.disclosures.append(
+                    f"There is no anatomy grade in this dataset. \"{'Best' if info['best'] else 'Worst'} anatomy\" is "
+                    f"approximated, as in the Phase 1 benchmark, by the {'lowest' if info['best'] else 'highest'} "
+                    "central subfield thickness (CST); CST is a thickness measurement, not an anatomical assessment. "
+                    "B-scans are attached for inspection.")
+                u.uses_images = not u.abstained
+                u.biomarkers = self._labels(eye_id, [query_visit_id] + (h.final_ranking or [])[:3],
+                                            ("drt_me", "fluid_irf"))
             if category == "edema_proxy":
                 u.disclosures.append(
                     "Edema severity is not recorded in this dataset. The visit was selected by central subfield "
@@ -229,6 +291,9 @@ class QuestionAwareRetriever:
 
         if category == "pathology":
             return self._pathology(base, info, eye_id, query_visit_id, cands)
+
+        if category == "trajectory":
+            return self._trajectory(base, eye_id, query_visit_id, cands)
 
         # mixed
         h_img = self.hybrid.retrieve(info["image_clause"], eye_id, query_visit_id)
@@ -259,6 +324,31 @@ class QuestionAwareRetriever:
                              disclosures=["Visits were ranked by image-embedding similarity (generic pretrained "
                                           "encoder), fused with CST closeness; the metadata part was answered from "
                                           "recorded measurements."])
+
+    # --- trajectory ----------------------------------------------------------------------------------------------
+
+    def _trajectory(self, base, eye_id, visit, cands) -> UnifiedResult:
+        """Baseline and previous visit (frozen anchor rules) with recorded CST changes to today, B-scans attached."""
+        if not cands:
+            return UnifiedResult(**base, status=R.INSUFFICIENT, reason="no prior visits", components=[],
+                                 final_ranking=None, uses_images=False)
+        comps, ranking = [], []
+        for label, text in (("baseline", CANON_BASELINE), ("previous visit", CANON_PREVIOUS)):
+            h = self.hybrid.retrieve(text, eye_id, visit)
+            anchor = h.final_ranking[0]
+            if anchor in ranking:
+                continue
+            ranking.append(anchor)
+            a, b = self.ep.loc[anchor, "cst"], self.ep.loc[visit, "cst"]
+            details = dict(target="cst", from_visit=anchor, from_value=float(a), to_value=float(b),
+                           delta=float(b - a)) if not (pd.isna(a) or pd.isna(b)) else {}
+            comps.append(Component("metadata_change" if details else "metadata", R.RETRIEVED,
+                                   f"{label}: frozen Phase 1 rule {h.intent}", [anchor], hybrid=h, details=details))
+        return UnifiedResult(**base, status=R.RETRIEVED, reason="longitudinal overview: baseline, previous visit and "
+                             "today", components=comps, final_ranking=ranking, uses_images=True,
+                             disclosures=["Visits were chosen by visit order (baseline, previous visit), not by "
+                                          "similarity. CST changes are computed from recorded values; any description "
+                                          "of anatomical change is a visual observation of single central B-scans."])
 
     # --- biomarker labels ----------------------------------------------------------------------------------------
 

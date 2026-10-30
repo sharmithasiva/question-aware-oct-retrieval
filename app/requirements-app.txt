@@ -1,0 +1,13 @@
+# Application dependencies (in addition to the project's pandas / numpy / openpyxl and pillow).
+# torch + torchvision are already in the GPU environment; they are needed only to embed uploaded scans.
+streamlit>=1.50
+altair>=5
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+pillow>=10
+# optional: Claude provider
+# anthropic>=0.70
+# tests
+pytest>=7
+httpx>=0.27

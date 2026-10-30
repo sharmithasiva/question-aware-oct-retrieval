@@ -18,3 +18,7 @@ phase2/cache/
 phase2/results/**/judgments_joined.csv
 phase2/results/**/b1_posthoc_per_query.csv
 phase2/results/question_eval_v2/**/eval_*_cda4ea5b_*/per_query_primary.csv
+
+# Demo app: local secrets and runtime files (uploaded-image copies, caches)
+.env
+app/.runtime/
