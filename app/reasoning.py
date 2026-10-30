@@ -38,6 +38,7 @@ DATE_RE = re.compile(r"\b(jan(uary)?|feb(ruary)?|march|apr(il)?|may \d|june?|jul
 HEDGE_RE = re.compile(r"\b(uncertain\w*|may|might|appears?|seems?|suggest\w*|possibl\w*|likely|limited|cannot|"
                       r"can't|unclear|not (be )?(possible|certain|definitive)|single|downscaled|unvalidated)\b", re.I)
 MIN_OUTPUT_TOKENS = 256
+MAX_CONTEXT_RETRIES = 2              # smaller requests after the server reports a context overflow
 # router disclosures that present CST as the answer to an edema/anatomy question (replaced in the prompt)
 PROXY_NOTES = ("Edema severity is not recorded", "There is no anatomy grade")
 
@@ -423,8 +424,9 @@ def provenance(ev: dict, sent: list[str], ep) -> list[dict]:
     return out
 
 
-def _result(status, text, backend, ev, plan, ep, sent=(), warnings=(), error=None, prompt=""):
+def _result(status, text, backend, ev, plan, ep, sent=(), warnings=(), error=None, prompt="", retries=0):
     return dict(status=status, answer=text, backend=backend, plan=asdict(plan), computed=computed_facts(ev, plan, ep),
+                context_retries=retries,
                 provenance=provenance(ev, list(sent), ep), images_sent=list(sent), warnings=list(warnings),
                 error=error, prompt=prompt, disclaimer=A.DISCLAIMER,
                 evidence_used=A.evidence_summary(ev) if "retrieved" in ev else "")
@@ -457,31 +459,41 @@ def generate(ev: dict, backend: str = "evidence", vlm=None, ep: pd.DataFrame | N
                          for b in ev.get("biomarkers", [])]
         return _result("answered", "No language model is configured, so this is the computed evidence, not a "
                                    "written answer:\n" + "\n".join(f"- {x}" for x in lines), "evidence", ev, plan, ep)
-    parts, sent, over = fit(ev, plan, ep, images, vlm, max_images)
     fail = "No generated answer: {}. The retrieved evidence and exact values are shown with the evidence; no answer " \
            "was substituted."
-    if parts is None:
-        return _result("model_error", fail.format(f"the model was not called: {over}"), "vlm", ev, plan, ep,
-                       error="context budget exceeded")
-    prompt = parts[-1]["text"]
-    try:
-        reply = vlm.generate(SYSTEM, parts)
-    except Exception as ex:                                   # adapters should not raise; never fabricate if they do
-        err = f"{type(ex).__name__}: {A.redact(ex)}"
-        return _result("model_error", fail.format(f"the model call failed ({err})"), "vlm", ev, plan, ep, sent,
-                       error=err, prompt=prompt)
+    retries = 0
+    while True:
+        parts, sent, over = fit(ev, plan, ep, images, vlm, max_images)
+        if parts is None:
+            return _result("model_error", fail.format(f"the model was not called: {over}"), "vlm", ev, plan, ep,
+                           error="context budget exceeded", retries=retries)
+        prompt = parts[-1]["text"]
+        try:
+            reply = vlm.generate(SYSTEM, parts)
+        except Exception as ex:                               # adapters should not raise; never fabricate if they do
+            err = f"{type(ex).__name__}: {A.redact(ex)}"
+            return _result("model_error", fail.format(f"the model call failed ({err})"), "vlm", ev, plan, ep, sent,
+                           error=err, prompt=prompt, retries=retries)
+        # the server rejected the request for its size: learn its count/limit, refit (fewer/smaller scans), retry
+        if reply.finish == "error" and retries < MAX_CONTEXT_RETRIES and hasattr(vlm, "learn_overflow") \
+                and vlm.learn_overflow(SYSTEM, parts, reply.error or ""):
+            retries += 1
+            continue
+        break
     if reply.finish == "error":
         return _result("model_error", fail.format(f"the model call failed ({A.redact(reply.error, 500)})"), "vlm", ev,
-                       plan, ep, sent, error=A.redact(reply.error, 500), prompt=prompt)
+                       plan, ep, sent, error=A.redact(reply.error, 500), prompt=prompt, retries=retries)
+    if hasattr(vlm, "learn_usage"):
+        vlm.learn_usage(SYSTEM, parts, (reply.usage or {}).get("prompt_tokens"))
     if reply.finish == "refusal":
         return _result("model_refused", fail.format("the model declined to answer"), "vlm", ev, plan, ep, sent,
-                       error="refusal", prompt=prompt)
+                       error="refusal", prompt=prompt, retries=retries)
     text = (reply.text or "").strip()
     if not text:
         return _result("model_error", fail.format("the model returned no text"), "vlm", ev, plan, ep, sent,
-                       error="empty response", prompt=prompt)
+                       error="empty response", prompt=prompt, retries=retries)
     warns = check_answer(text, ev, plan, ep)
     if reply.finish == "length":
-        return _result("model_incomplete", text, "vlm", ev, plan, ep, sent, prompt=prompt, error="max_tokens",
+        return _result("model_incomplete", text, "vlm", ev, plan, ep, sent, prompt=prompt, error="max_tokens", retries=retries,
                        warnings=["the answer was cut off at the output limit and is incomplete"] + warns)
-    return _result("answered", text, "vlm", ev, plan, ep, sent, warnings=warns, prompt=prompt)
+    return _result("answered", text, "vlm", ev, plan, ep, sent, warnings=warns, prompt=prompt, retries=retries)

@@ -387,6 +387,98 @@ def test_ollama_context_error_is_explained(parts, tmp_path):
     assert t.answer["status"] == "model_error" and "context window" in t.answer["answer"]
 
 
+def ollama_opener(replies, seen):
+    """Fake Ollama server: answers each request with the next reply (an exception is raised, a dict is returned)."""
+    def opener(req, timeout):
+        seen.append(json.loads(req.data))
+        r = replies[min(len(seen) - 1, len(replies) - 1)]
+        if callable(r):
+            raise r()
+        return Resp(json.dumps(r).encode())
+    return opener
+
+
+def overflow(msg):
+    return lambda: urllib.error.HTTPError("u", 400, "Bad Request", {}, io.BytesIO(json.dumps({"error": msg}).encode()))
+
+
+OK = {"message": {"content": MODEL_TEXT}, "done_reason": "stop", "prompt_eval_count": 100}
+
+
+def test_ollama_v1_url_uses_the_native_api_so_num_ctx_is_applied():
+    vlm = make_vlm("openai_compatible", "qwen2.5vl:3b", "http://localhost:11434/v1", num_ctx=8192)
+    assert isinstance(vlm, OllamaVLM) and vlm.base_url == "http://localhost:11434"
+    assert vlm.num_ctx == vlm.context_tokens == 8192                     # the budget is the window actually set
+    plain = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434")
+    assert plain.num_ctx == plain.context_tokens == 4096                  # never rely on the server's default window
+    small = make_vlm("ollama", "m", "", context_tokens=8192, num_ctx=4096)
+    assert small.context_tokens == 4096                                   # budget never above the window sent
+
+
+def test_every_ollama_request_sends_num_ctx(parts, tmp_path):
+    big_scans(parts)
+    seen = []
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434")
+    vlm._open = ollama_opener([OK], seen)
+    make(parts, tmp_path, vlm).ask("When was edema worst?", EYE, TODAY, backend="vlm")
+    assert seen[0]["options"]["num_ctx"] == 4096
+
+
+def test_context_overflow_is_learned_and_retried_with_a_smaller_request(parts, tmp_path):
+    big_scans(parts)
+    seen = []
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434")
+    vlm.token_scale = 0.5                                                # simulate an estimate far below the server's count
+    vlm._open = ollama_opener([overflow("input length (5324 tokens) exceeds the context length (4096 tokens)"), OK],
+                              seen)
+    t = make(parts, tmp_path, vlm).ask("When was edema worst?", EYE, TODAY, backend="vlm")
+    a = t.answer
+    assert a["status"] == "answered" and a["context_retries"] == 1 and len(seen) == 2
+    assert vlm.token_scale > 0.5                                          # learned from the server's count
+    first, second = (len(b["messages"][1].get("images", [])) for b in seen)
+    sizes = [Image.open(io.BytesIO(__import__("base64").b64decode(b["messages"][1]["images"][0]))).size for b in seen]
+    assert second < first or sizes[1][0] < sizes[0][0]                  # fewer or smaller scans the second time
+
+
+def test_server_limit_below_the_budget_lowers_budget_and_window(parts, tmp_path):
+    big_scans(parts)
+    seen = []
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434", num_ctx=8192)
+    vlm._open = ollama_opener([overflow("requested context 8192 tokens exceeds available memory; max 4096 tokens"),
+                               OK], seen)
+    t = make(parts, tmp_path, vlm).ask("When was edema worst?", EYE, TODAY, backend="vlm")
+    assert t.answer["status"] == "answered" and vlm.context_tokens == 4096
+    assert seen[1]["options"]["num_ctx"] == 4096
+
+
+def test_repeated_overflow_ends_with_a_clear_error_and_the_evidence(parts, tmp_path):
+    big_scans(parts)
+    seen = []
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434")
+    vlm._open = ollama_opener([overflow("the input length exceeds the context length")], seen)
+    t = make(parts, tmp_path, vlm).ask("When was edema worst?", EYE, TODAY, backend="vlm")
+    a = t.answer
+    assert a["status"] == "model_error" and a["provenance"] and a["computed"]
+    assert len(seen) <= 1 + RS.MAX_CONTEXT_RETRIES and ("context window" in a["answer"] or "budget" in a["answer"])
+
+
+def test_non_context_errors_are_not_retried(parts, tmp_path):
+    seen = []
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434")
+    vlm._open = ollama_opener([lambda: urllib.error.URLError("connection refused")], seen)
+    t = make(parts, tmp_path, vlm).ask("When was edema worst?", EYE, TODAY, backend="vlm")
+    assert len(seen) == 1 and t.answer["context_retries"] == 0 and "cannot reach" in t.answer["answer"]
+
+
+def test_reported_prompt_size_calibrates_the_estimate(parts, tmp_path):
+    big_scans(parts)
+    seen = []
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434", num_ctx=8192)
+    vlm._open = ollama_opener([dict(OK, prompt_eval_count=7000)], seen)
+    make(parts, tmp_path, vlm).ask("When was edema worst?", EYE, TODAY, backend="vlm")
+    assert vlm.token_scale > 1.0
+
+
 def test_image_preparation_downscales_without_upscaling(tmp_path):
     p = tmp_path / "s.png"
     Image.fromarray(np.zeros((496, 504), np.uint8)).save(p)

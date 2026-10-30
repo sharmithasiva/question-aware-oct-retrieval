@@ -85,6 +85,7 @@ class BudgetMixin:
     image_tokens: int = 0          # fixed tokens per image (calibration); 0 = estimate from the pixel size
     image_format: str = "png"
     chars_per_token: float = 3.0   # conservative for English text with many numbers and visit IDs
+    token_scale: float = 1.0       # raised when the server counts more tokens than estimated (learn_* below)
 
     def _budget(self, context_tokens=0, image_max_side=448, image_min_side=280, image_tokens=0, image_format="png"):
         self.context_tokens = int(context_tokens or 0)
@@ -112,8 +113,38 @@ class BudgetMixin:
     def estimate_tokens(self, system: str, parts: list[dict], side: int | None = None) -> int:
         side = side if side is not None else self.image_max_side
         chars = len(system) + sum(len(p["text"]) for p in parts if p["type"] == "text")
-        return (math.ceil(chars / self.chars_per_token) + 32
-                + sum(self.image_cost(p["path"], p.get("max_side", side)) for p in parts if p["type"] == "image"))
+        raw = (math.ceil(chars / self.chars_per_token) + 32
+               + sum(self.image_cost(p["path"], p.get("max_side", side)) for p in parts if p["type"] == "image"))
+        return math.ceil(raw * self.token_scale)
+
+    def learn_overflow(self, system: str, parts: list[dict], error: str) -> bool:
+        """After the server rejected a request for its size: make the next estimate at least what the server counted
+        (or 50 % larger when it gave no count) and lower the budget to the server's limit when it named one. Returns
+        False when the error is not about the context window (nothing learned, no retry)."""
+        if not CONTEXT_RE.search(error or ""):
+            return False
+        est = self.estimate_tokens(system, parts)
+        sent_window = {self.context_tokens, getattr(self, "num_ctx", 0)}
+        nums = [int(n.replace(",", "")) for n in TOKENS_RE.findall(error)]
+        if len(nums) >= 2 and max(nums) in sent_window:      # "requested context 8192 ... max 4096": no prompt count
+            nums = [min(nums)]
+        need = max(nums) if len(nums) >= 2 else (nums[0] if nums and nums[0] > est else None)
+        limit = min(nums) if len(nums) >= 2 else (nums[0] if nums and nums[0] <= est else None)
+        if limit:
+            self.context_tokens = min(self.context_tokens or limit, limit)
+            if getattr(self, "num_ctx", 0):
+                self.num_ctx = min(self.num_ctx, limit)
+        if need and need > est:
+            self.token_scale *= need / est * 1.05
+        elif not limit or limit >= est:
+            self.token_scale *= 1.5
+        return True
+
+    def learn_usage(self, system: str, parts: list[dict], prompt_tokens) -> None:
+        """Calibrate from the prompt size the server reports for a successful request (only ever upwards)."""
+        est = self.estimate_tokens(system, parts)
+        if prompt_tokens and int(prompt_tokens) > est:
+            self.token_scale *= int(prompt_tokens) / est * 1.05
 
     def output_tokens(self, system: str, parts: list[dict]) -> int:
         if not self.context_tokens:
@@ -129,8 +160,12 @@ CONTEXT_HINT = ("the request is larger than the model's context window: lower OC
                 "OCT_VLM_IMAGE_MAX_SIDE, or raise OCT_VLM_NUM_CTX (Ollama) together with OCT_VLM_CONTEXT")
 
 
+CONTEXT_RE = re.compile(r"context|too (long|many tokens)|exceed|num_ctx|maximum.*tokens", re.I)
+TOKENS_RE = re.compile(r"(\d[\d,]*)\s*(?:input\s+)?tokens?\b", re.I)
+
+
 def _context_hint(detail: str) -> str:
-    return f" ({CONTEXT_HINT})" if re.search(r"context|too (long|many tokens)|exceed", detail, re.I) else ""
+    return f" ({CONTEXT_HINT})" if CONTEXT_RE.search(detail) else ""
 
 
 class OpenAICompatibleVLM(BudgetMixin):
@@ -214,7 +249,8 @@ class OllamaVLM(OpenAICompatibleVLM):
                  opener=None, num_ctx: int = 0, **budget):
         base_url = re.sub(r"/v1/?$", "", (base_url or "http://localhost:11434").rstrip("/"))
         super().__init__(base_url, model, api_key, timeout, max_tokens, opener=opener, **budget)
-        self.num_ctx = int(num_ctx or 0)
+        # the window is always set explicitly, so the server never runs a smaller default than the budget assumes
+        self.num_ctx = int(num_ctx or self.context_tokens or 0)
 
     def __repr__(self):
         return f"OllamaVLM(base_url={self.base_url!r}, model={self.model!r}, num_ctx={self.num_ctx or 'server default'})"
@@ -261,6 +297,13 @@ def is_ollama(provider: str, base_url: str) -> bool:
     return provider == "ollama" or ":11434" in (base_url or "")
 
 
+def default_context(provider: str, base_url: str, context_tokens: int | None, num_ctx: int) -> int:
+    """The token budget: OCT_VLM_CONTEXT, else OCT_VLM_NUM_CTX, else 4096 for Ollama, else none (0)."""
+    if context_tokens is not None:
+        return int(context_tokens)
+    return int(num_ctx or (4096 if is_ollama(provider, base_url) else 0))
+
+
 class AnthropicVLM:
     def __init__(self, model: str = A.MODEL, api_key: str = "", max_tokens: int = 1500, client=None):
         self.model, self.max_tokens = model or A.MODEL, max_tokens
@@ -294,14 +337,17 @@ def make_vlm(provider: str, model: str = "", base_url: str = "", api_key: str = 
              image_max_side: int | None = 448, image_min_side: int = 280, image_tokens: int = 0,
              image_format: str = "png"):
     """Adapter for the provider, or None for evidence-only mode. context_tokens=None picks a default: num_ctx when
-    set, else 4096 for Ollama (its usual default window for this model), else no budget."""
+    set, else 4096 for Ollama, else no budget. Any Ollama URL (also .../v1) gets the native Ollama adapter."""
     if provider == "evidence":
         return None
-    if context_tokens is None:
-        context_tokens = num_ctx or (4096 if is_ollama(provider, base_url) else 0)
+    context_tokens = default_context(provider, base_url, context_tokens, num_ctx)
     budget = dict(context_tokens=context_tokens, image_max_side=image_max_side, image_min_side=image_min_side,
                   image_tokens=image_tokens, image_format=image_format)
-    if provider == "ollama":
+    if provider == "ollama" or (provider == "openai_compatible" and is_ollama(provider, base_url)):
+        # Ollama's OpenAI-compatible /v1 cannot set the context window, so its native API is used for every Ollama
+        # URL; num_ctx (= the budget unless set) is sent with every request.
+        if num_ctx and context_tokens and num_ctx < context_tokens:
+            context_tokens = budget["context_tokens"] = num_ctx
         return OllamaVLM(base_url, model, api_key, timeout, max_tokens, num_ctx=num_ctx, **budget)
     if provider == "openai_compatible":
         return OpenAICompatibleVLM(base_url, model, api_key, timeout, max_tokens, **budget)

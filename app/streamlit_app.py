@@ -168,6 +168,9 @@ def render_answer(t: Turn):
         st.warning(f"Check against the evidence: {w}")
     for n in t.notes:
         st.caption(n)
+    if a.get("context_retries"):
+        st.caption(f"The model server reported a context-window overflow; the request was resent "
+                   f"{a['context_retries']}× with fewer or smaller scans.")
     if a.get("computed"):
         st.markdown(badge("metadata", "meta") + "**Exact values (computed from recorded metadata, not by the model)**",
                     unsafe_allow_html=True)

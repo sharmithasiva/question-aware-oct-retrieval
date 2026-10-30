@@ -116,6 +116,12 @@ Edit `.env` and choose a provider (see below). Real environment variables overri
   `OCT_VLM_CONTEXT` (default: `OCT_VLM_NUM_CTX`, else 4096 for Ollama), the scans are first shrunk step by step down
   to `OCT_VLM_IMAGE_MIN_SIDE` (280), then optional scans are dropped; if it still does not fit, the model is not
   called and the chat says why. At 4096, three scans go at about 336 px.
+* **Ollama.** Every Ollama URL, including `http://localhost:11434/v1`, is called through Ollama's native API, and
+  `num_ctx` (= the budget, 4096 unless `OCT_VLM_NUM_CTX` / `OCT_VLM_CONTEXT` say otherwise) is sent with every
+  request, so the window the server runs always matches the budget the app packs for. If the server still reports a
+  context overflow, the app learns from the numbers in the error (its token count, or its lower limit), rebuilds the
+  request with fewer or smaller scans and retries (at most twice); the prompt sizes Ollama reports for successful
+  requests also recalibrate the estimate.
 * **Failures** (budget, rate limit, connection, context errors from the server) show a clear message with the
   exact values and provenance kept; no answer is substituted.
 
