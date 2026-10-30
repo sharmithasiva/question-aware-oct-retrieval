@@ -1,9 +1,10 @@
 # Question-Aware Multimodal OCT Assistant (demo)
 
-A chat app over the OLIVES OCT dataset. Every question goes through the project's question-aware hybrid retrieval
-(frozen Phase 1 parser and eligibility rules, Phase 2 hybrid retriever, Phase 3 question router) **before** any
-model sees it. A vision-language model (VLM) can only phrase an answer from the evidence package it receives:
-retrieved visits, recorded CST/BCVA, dataset finding labels and the B-scans. Abstentions never reach a model.
+A chat app over the OLIVES OCT dataset. **Retrieval organises the evidence; the vision-language model (Qwen2.5-VL
+by default) writes the answer.** Every question first goes through the project's question-aware hybrid retrieval
+(frozen Phase 1 parser and eligibility rules, Phase 2 hybrid retriever, Phase 3 question router). `app/reasoning.py`
+then works out what the original question needs, computes the exact numbers, and gives the model the question, the
+structured evidence and the B-scans it must look at. Abstentions never reach a model.
 
 ```
 question ──► Assistant.route ─┬─ history ──────────► question_router (frozen parse_intent + eligibility) ─┐
@@ -11,27 +12,33 @@ question ──► Assistant.route ─┬─ history ─────────
   optional upload)            ├─ upload_similarity ► ResNet-50 cosine of the upload vs this eye's visits ──┤
                               └─ followup ─────────► re-shows the previous turn's evidence                 │
                                                                                                            ▼
-                        evidence package (answer.build_unified_evidence: rows, images, labels, disclosures)
+                 evidence package: same-eye earlier visits, CST/BCVA, OLIVES labels, scans, disclosures
                                        │ abstained? ──► abstention text, no model call
                                        ▼
-                                       │ needs visual interpretation? no ──► deterministic answer, no model call
+                 reasoning.plan_question: numeric | labels | visual | visual+metadata (from the ORIGINAL question)
+                 reasoning.computed_facts: exact rule results, CST/BCVA differences, visit order (deterministic)
                                        ▼
-                 backend: evidence-only │ Ollama / OpenAI-compatible VLM (OpenRouter, vLLM) │ Claude
-                 (only the scans the question needs, downscaled, within the context budget)
+                 VLM prompt: original question + evidence (visits by label, no IDs) + the scans the plan needs,
+                 downscaled and fitted to the context budget ──► the model writes the answer
                                        ▼
-                 grounding check (visit IDs, CST/BCVA values, "Evidence used:" line) ──► answer + evidence panel
+                 validation (numbers, visit labels, dates, CST≠edema, label coverage, uncertainty) ──►
+                 answer prose | exact values | provenance table (visit IDs, roles, scans sent) — kept separate
 ```
 
-| Question type | Category | What controls the answer |
+| Question | Plan | What the model receives |
 |---|---|---|
-| "When was CST highest?" / "largest CST increase" | `metadata` | frozen rule over recorded CST of eligible earlier visits |
-| "When was the edema worst?" | `edema_proxy` | CST used as a proxy; disclosed every time (CST does not measure edema) |
-| "Which earlier visit's OCT looks most like today's?" | `image_similarity` | ResNet-50 cosine fused with CST closeness (RRF); similarity ≠ clinical similarity |
-| "When was the retinal anatomy best?" | `anatomy_proxy` | lowest CST, disclosed as a proxy (no anatomy grade exists) |
-| "How has the retina changed over time?" | `trajectory` | baseline + previous visit, recorded CST deltas, images |
-| "When did IRF first appear?" | `pathology` | OLIVES labels exist only for first/last visit → abstains (`insufficient_labels`) |
-| "What abnormalities are visible in this scan?" | `scan_visual` | the VLM's visual observation, labelled as such, next to dataset labels |
-| Upload + "which visit looks most like this scan?" | `upload_similarity` | cosine vs the selected eye's embedded visits |
+| "When was CST highest?" / "largest CST increase" | numeric | the frozen rule's result and exact differences as text; no scans |
+| "When was the edema worst?" | visual + metadata | today's scan + the highest-CST earlier visits as *candidates*; CST is a shortlist cue, not an edema grade; labels |
+| "Which visit had the best anatomy?" | visual + metadata | today's scan + the lowest-CST candidates; the model judges anatomy on the scans |
+| "How has the retina changed since baseline / over time?" | visual + metadata | today's, baseline (and previous) scans + exact CST/BCVA changes |
+| "Which earlier visit's OCT looks most like today's?" | visual + metadata | today's scan + the top embedding candidates (cosine ≠ clinical similarity) |
+| "Which earlier visit looks similar, and how did CST change?" | visual + metadata | scans + the exact CST change |
+| "What abnormalities are visible in this scan?" | visual | that one scan (+ dataset labels when the visit is labelled) |
+| Upload + "what is visible?" / "which visit looks like it?" | visual | the uploaded scan (external), or it + this eye's top candidates |
+| "When did IRF first appear?" | — | abstains: labels exist only for the first and last visit |
+
+Without a model (evidence-only mode) questions about recorded values list the computed evidence, and questions that
+need visual interpretation say that a vision-language model is needed: they are never answered from metadata alone.
 
 Uploaded images are **external**: they are never linked to a patient, eye, visit or date unless they are byte- or
 pixel-identical to a dataset B-scan (then the answer says which visit it matched). The dataset has no calendar
@@ -58,8 +65,8 @@ Edit `.env` and choose a provider (see below). Real environment variables overri
 
 ### Provider
 
-* **Evidence only** (default, `OCT_VLM_PROVIDER=evidence`): no model; answers are written from the evidence. It
-  cannot describe image content and says so.
+* **Evidence only** (default, `OCT_VLM_PROVIDER=evidence`): no model. Questions about recorded values list the
+  computed evidence; questions that need the scans to be interpreted say that a model is needed.
 * **Ollama, local and free (recommended for the 8 GB RTX 5050)**: install Ollama ≥ 0.7, then
 
   ```powershell
@@ -74,26 +81,34 @@ Edit `.env` and choose a provider (see below). Real environment variables overri
   list of free vision models changes, so check before a demo with `python -m app.check_vlm --list-only`.
 * **Claude** (`OCT_VLM_PROVIDER=anthropic`, `pip install anthropic`, `ANTHROPIC_API_KEY`): paid.
 
-### When the model is called, and how much it receives
+### What the model receives, and how it is checked
 
-* **Metadata-only questions never call the model**, whatever provider is selected: CST/BCVA rules (highest,
-  largest increase, compared with today), the edema and anatomy CST proxies, finding-label questions and
-  image-similarity rankings ("which earlier visit looks most like today's?") are answered directly from the
-  retrieved evidence by the frozen rule (`model: deterministic` in the chat). The scans are still shown in the panel.
-* **Visual questions call the model** with only the scans they need, in this order: uploaded scan, today's scan,
-  retrieved visits best first, duplicates (identical files) removed. "What is visible in this scan?" → 1 scan;
-  "compare the current scan with the previous visit" or a similarity question that asks how scans *differ* → 2;
-  "how has the retina changed over time?" → today, baseline, previous (3). `OCT_VLM_MAX_IMAGES` caps this.
+* **The original question**, never a rewritten one (the router's interpretation is used only for retrieval).
+* **Structured evidence**: today's visit, the retrieved visits with their role (rule result, CST-shortlisted
+  candidate, image-similarity candidate, reference visit), recorded CST/BCVA, the CST/BCVA timeline of the eligible
+  visits, OLIVES labels with their coverage ("labels exist for V1, V27 only"), and the disclosures. Visits are named
+  by their visit label (V3, W12); visit IDs never appear in the prompt, so provenance stays out of the prose.
+* **Exact computed facts**: rule results, differences, ranges and visit order are computed by the app; the model is
+  told to use them and not to calculate.
+* **Only the scans the question needs**: 1 for a single-scan question; today's + 2–3 candidates for edema, anatomy
+  and similarity questions; today's, baseline and previous for change questions; none for numeric questions.
+  Identical files are sent once; `OCT_VLM_MAX_IMAGES` caps optional scans.
+* **Checks on the answer** (shown as warnings, the text is never rewritten): numbers that are not recorded values or
+  differences of them, visit labels not in this eye's evidence, dates (the dataset has none), visit IDs in the
+  prose, CST presented as edema severity, no mention of the incomplete finding labels when findings are involved,
+  and visual descriptions without any acknowledgement of uncertainty.
+* **Provenance** is shown next to the answer as a table (visit ID, label, role, how it was retrieved, CST, BCVA,
+  whether its scan was sent, dataset labels), with the exact computed values listed separately.
 * **Context budget.** Scans are converted to greyscale and downscaled to `OCT_VLM_IMAGE_MAX_SIDE` px (default
-  448; the atlas scans are 504 × 496, so retinal detail is barely reduced; never upscaled). The prompt size is
-  estimated conservatively (about one token per 14 × 14 pixels, three characters per text token). If the request
-  plus 256 answer tokens exceeds `OCT_VLM_CONTEXT` (default: `OCT_VLM_NUM_CTX`, else 4096 for Ollama), optional
-  scans are dropped first, then the scans are shrunk step by step down to `OCT_VLM_IMAGE_MIN_SIDE` (280); if it
-  still does not fit, the model is not called and the chat says why. The answer length is capped to what is left.
-* **Failures** (budget, rate limit, connection, context errors from the server) show a clear message, the
-  retrieved evidence as text, and the unchanged evidence panel. No answer is substituted.
+  448; the atlas scans are 504 × 496; never upscaled). The prompt size is estimated conservatively (about one token
+  per 14 × 14 pixels, three characters per text token). If the request plus 256 answer tokens exceeds
+  `OCT_VLM_CONTEXT` (default: `OCT_VLM_NUM_CTX`, else 4096 for Ollama), the scans are first shrunk step by step down
+  to `OCT_VLM_IMAGE_MIN_SIDE` (280), then optional scans are dropped; if it still does not fit, the model is not
+  called and the chat says why. At 4096, three scans go at about 336 px.
+* **Failures** (budget, rate limit, connection, context errors from the server) show a clear message with the
+  exact values and provenance kept; no answer is substituted.
 
-For 3 scans at full size on Ollama, raise the window: `OCT_VLM_NUM_CTX=8192` (uses more GPU memory).
+For 3–4 scans at full size on Ollama, raise the window: `OCT_VLM_NUM_CTX=8192` (uses more GPU memory).
 
 Check the configured model with one real B-scan (the key is never printed):
 
@@ -126,15 +141,17 @@ python -m pytest -q app\tests
 
 ## Demo workflow
 
-1. Pick an eye and a current visit in the sidebar (eyes with the most OCT images in the subset are listed first).
-2. Ask "When was CST highest?" — the panel shows the selected visit, its CST, the timeline and the rule used.
-3. Ask "When was the edema worst?" — same visit, with the CST-proxy disclosure.
-4. Ask "Which earlier visit's OCT looks most like today's?" — similar scans with cosines and a similarity
-   disclaimer.
-5. Ask "When did IRF first appear?" — abstention: labels exist only for the first and last visit.
-6. Upload a PNG/JPEG B-scan and ask "What abnormalities are visible in this scan?" — the VLM's observation is
-   labelled as a model observation of an external image; no history is attributed to it.
-7. Ask "Which earlier visit looks most like this scan?" — cosine ranking of the selected eye's visits.
+1. Pick an eye and a current visit in the sidebar (eyes with the most OCT images in the subset are listed first),
+   and choose the Ollama provider under **Answer model**.
+2. Ask "When was CST highest?" — the model states the frozen rule's result; the exact values and the provenance
+   table sit under the answer.
+3. Ask "When was the edema worst?" — the model compares today's scan with the highest-CST candidates and says what
+   it sees; CST is presented as a shortlist cue, not as edema severity.
+4. Ask "How has the retina changed since baseline?" — today's and baseline scans plus the exact CST/BCVA changes.
+5. Ask "Which earlier visit's OCT looks most like today's?" — the model compares the embedding candidates' scans.
+6. Ask "When did IRF first appear?" — abstention: labels exist only for the first and last visit.
+7. Upload a PNG/JPEG B-scan and ask "What abnormalities are visible in this scan?" — a model observation of an
+   external image; no history is attributed to it.
 8. Ask "What evidence supports your answer?" — the previous turn's evidence, unchanged.
 
 The evidence panel colours sources separately: recorded metadata, image retrieval, dataset labels and model
@@ -143,7 +160,11 @@ observations.
 ## Limitations
 
 * Not a clinical tool. Image similarity is ResNet-50 (ImageNet) feature cosine, not clinical similarity.
-* CST is the only quantitative anatomy signal; edema and "anatomy" questions are CST proxies.
+* CST is the only quantitative anatomy signal. Edema and anatomy candidates are shortlisted by CST (the frozen
+  proxy rule), so a visit outside the shortlist is not shown to the model; the judgement on the scans is the
+  model's own and unvalidated.
+* A small local model (qwen2.5vl:3b) at a 4096-token window sees downscaled single central B-scans; its visual
+  reading can be wrong. The answer checks catch invented numbers, visits and dates, not wrong visual descriptions.
 * Finding labels exist only for the first and last visit of each eye; onset questions abstain.
 * The demo subset is small (73 images); the larger subset requires the GPU pipeline.
 * VLM observations of OCT images are unvalidated; free hosted models can be rate-limited or withdrawn.

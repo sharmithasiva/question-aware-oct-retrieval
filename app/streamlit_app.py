@@ -21,6 +21,7 @@ import streamlit as st  # noqa: E402
 from app.assistant import Assistant, Turn  # noqa: E402
 from app.config import PRESETS, load_config  # noqa: E402
 from app.uploads import UploadError, validate_upload  # noqa: E402
+from app import reasoning as RS  # noqa: E402
 from app.vlm import make_vlm  # noqa: E402
 
 import answer as A  # noqa: E402  (phase2, on sys.path via app.assistant)
@@ -124,7 +125,7 @@ def sidebar(a: Assistant):
             budget = getattr(vlm, "context_tokens", 0)
             st.sidebar.caption((f"Context budget: {budget} tokens" if budget else "Context budget: not enforced")
                                + f"; at most {cfg.max_images} B-scans per request, downscaled to "
-                               f"{cfg.image_max_side} px. Metadata-only questions are answered without the model.")
+                               f"{cfg.image_max_side} px. Questions about recorded values are sent as text only; scans are attached only when the question needs them.")
         except ValueError as ex:
             st.sidebar.error(str(ex))
 
@@ -157,8 +158,9 @@ def sidebar(a: Assistant):
 def render_answer(t: Turn):
     a = t.answer
     status_cls = "stat" if a["status"] == "answered" else "bad"
-    st.markdown(badge(t.category, "stat") + badge(a["status"], status_cls) + badge(f"model: {a['backend']}", "vlm"),
-                unsafe_allow_html=True)
+    plan = a.get("plan") or {}
+    st.markdown(badge(t.category, "stat") + badge(a["status"], status_cls) + badge(f"model: {a['backend']}", "vlm")
+                + (badge(f"needs: {plan['kind']}", "stat") if plan.get("kind") else ""), unsafe_allow_html=True)
     if a["status"] == "abstained":
         st.markdown(f"<div class='abst'><b>No answer — the retriever abstained.</b></div>", unsafe_allow_html=True)
     st.markdown(a["answer"].replace("\n", "  \n"))
@@ -166,6 +168,13 @@ def render_answer(t: Turn):
         st.warning(f"Check against the evidence: {w}")
     for n in t.notes:
         st.caption(n)
+    if a.get("computed"):
+        st.markdown(badge("metadata", "meta") + "**Exact values (computed from recorded metadata, not by the model)**",
+                    unsafe_allow_html=True)
+        st.markdown("\n".join(f"- {html.escape(f)}" for f in a["computed"]))
+    if a.get("provenance"):
+        st.markdown(badge("provenance", "stat") + "**Evidence behind this answer**", unsafe_allow_html=True)
+        st.dataframe(pd.DataFrame(a["provenance"]), hide_index=True, width="stretch")
     st.markdown(f"<span class='note'>Eye {t.eye if t.eye is not None else '–'} · current visit {t.visit or '–'} · "
                 f"{html.escape(a['evidence_used'])}</span>", unsafe_allow_html=True)
 
@@ -206,10 +215,6 @@ def render_evidence(a: Assistant, t: Turn):
                     unsafe_allow_html=True)
     for d in ev.get("disclosures", []):
         st.markdown(f"<div class='disc'>{html.escape(d)}</div>", unsafe_allow_html=True)
-    if ev.get("facts"):
-        st.markdown(badge("metadata", "meta") + "**Computed from recorded values**", unsafe_allow_html=True)
-        for f in ev["facts"]:
-            st.markdown(f"- {f}")
     if ev.get("retrieved"):
         st.markdown("#### Retrieved visits")
         st.dataframe(pd.DataFrame([dict(rank=r["rank"], role=r["role"], selected_by=", ".join(r.get("sources", [])),
@@ -220,28 +225,30 @@ def render_evidence(a: Assistant, t: Turn):
     if t.eye is not None:
         st.markdown("#### CST timeline")
         cst_chart(a, t)
-    if ev.get("images"):
-        st.markdown("#### OCT scans given to the model")
-        cols = st.columns(min(len(ev["images"]), 2))
+    sent = t.answer.get("images_sent") or []
+    shown = sent or [im["visit_id"] for im in ev.get("images", [])]
+    if shown:
+        st.markdown("#### OCT scans " + ("sent to the model" if sent else "of the evidence (no model call)"))
+        cols = st.columns(min(len(shown), 2))
         cos = {r["visit_id"]: r.get("image_cosine") for r in ev.get("retrieved", [])}
-        for k, im in enumerate(ev["images"]):
-            c = cos.get(im["visit_id"])
-            cols[k % len(cols)].image(im["path"], width="stretch",
-                                      caption=f"{A.image_label(im).removeprefix('B-scan: ')}"
-                                              + (f" · cosine {c:.3f}" if c is not None else ""))
+        for k, vid in enumerate(shown):
+            path = RS.image_path(vid, ev, a.images)
+            if path is None:
+                continue
+            c = cos.get(vid)
+            cols[k % len(cols)].image(path, width="stretch", caption=vid + (f" · cosine {c:.3f}" if c is not None else ""))
     if ev.get("biomarkers"):
         st.markdown(badge("dataset labels", "lab") + "**OLIVES finding labels** (first and last visit only)",
                     unsafe_allow_html=True)
         for b in ev["biomarkers"]:
             st.markdown(f"- {A._fmt_labels(b)}")
-    if t.answer.get("backend") not in ("none", "evidence", "deterministic") and ev.get("images"):
+    if sent:
         st.markdown(badge("model observation", "vlm") + "Statements about what is *visible* are the model's own, "
-                    "unvalidated observations of single B-scans.", unsafe_allow_html=True)
-        if t.answer.get("images_sent"):
-            st.caption("B-scans sent to the model: " + ", ".join(t.answer["images_sent"]))
-    with st.expander("Evidence text" + (" sent to the model" if t.answer.get("backend") in ("vlm", "claude")
-                                        else " (no model was called)")):
-        st.code(A.evidence_text(ev), language=None)
+                    "unvalidated observations of single central B-scans.", unsafe_allow_html=True)
+    if t.answer.get("plan", {}).get("why"):
+        st.caption("What the question needs: " + t.answer["plan"]["why"])
+    with st.expander("Evidence text" + (" sent to the model" if t.answer.get("prompt") else " (no model was called)")):
+        st.code(t.answer.get("prompt") or A.evidence_text(ev), language=None)
     if u is not None and u.primary is not None:
         with st.expander("All eligible visits: metadata / image / final ranks"):
             st.dataframe(u.primary.table(), hide_index=True, width="stretch")

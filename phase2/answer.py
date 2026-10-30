@@ -21,8 +21,6 @@ Research prototype: nothing here is a diagnosis or a clinically validated output
 from __future__ import annotations
 
 import base64
-import copy
-import hashlib
 import re
 import sys
 from pathlib import Path
@@ -308,8 +306,7 @@ def evidence_text(ev: dict) -> str:
         for v in ev["retrieved"]:
             sim = "" if v["image_cosine"] is None else f"; image-embedding cosine {v['image_cosine']:.3f}"
             img = "" if not _uses_images(ev) else (
-                "; B-scan attached" if v["image_attached"] else "; B-scan not sent" if v.get("image_not_sent")
-                else "; no B-scan available")
+                "; B-scan attached" if v["image_attached"] else "; no B-scan available")
             src = f" via {', '.join(v['sources'])}" if v.get("sources") else ""
             lines.append(f"  {v['rank']}. [{v['role']}{src}] {_fmt(v)}{sim}{img}")
     elif ev.get("category") != "scan_visual":
@@ -455,123 +452,12 @@ def answer_claude(ev: dict, client=None) -> dict:
     return dict(status="answered", text=text, warnings=warnings, error=None)
 
 
-# --- vision-language model requests: only when the question needs visual interpretation, within a budget ---------
-
-EVIDENCE_ONLY_NOTE = "(Evidence-only mode: no language model was used.)"
-DETERMINISTIC_NOTE = ("(Answered directly from the retrieved evidence by the retrieval rule; this question needs no "
-                      "visual interpretation, so no vision-language model was called.)")
-# words asking for a description or comparison of what the scans show (not just which visit ranks first)
-VISUAL_ASK_RE = re.compile(r"\b(describe|description|differ\w*|compar\w*|visible|visibly|appearance|abnormal\w*"
-                           r"|look(s|ed)? different|what (do|does|can) (you|i|we) see)\b", re.I)
-# categories whose answer IS a visual description (images are the evidence)
-VISION_CATEGORIES = ("scan_visual", "trajectory")
-# categories answered by a deterministic ranking unless the question also asks to describe or compare the scans
-RANKING_IMAGE_CATEGORIES = ("image_similarity", "mixed", "upload_similarity")
-# images a visual answer needs at most / at least, by category (first images of ev["images"] in payload order:
-# uploaded scan, today's visit, then retrieved visits best first)
-IMAGES_NEEDED = {"scan_visual": (1, 1), "trajectory": (3, 2), "metadata": (2, 2), "image_similarity": (2, 2),
-                 "mixed": (2, 2), "upload_similarity": (2, 2)}
-MIN_OUTPUT_TOKENS = 256
-
-
-def needs_vision(ev: dict) -> bool:
-    """True when answering requires a model to look at the B-scans. Metadata questions (CST/BCVA rules, edema and
-    anatomy proxies, finding labels) are fully answered by the frozen retrieval rule; image-similarity rankings are
-    answered by the ranking unless the question also asks what the scans show or how they differ."""
-    if ev.get("status") != "retrieved" or not ev.get("images"):
-        return False
-    cat = ev.get("category")
-    if cat in VISION_CATEGORIES:
-        return True
-    if cat in RANKING_IMAGE_CATEGORIES:
-        return bool(VISUAL_ASK_RE.search(ev["question"]))
-    # metadata route with the router's "visual" flag (e.g. "compare the current scan with the previous visit")
-    return cat == "metadata" and bool(ev.get("uses_images"))
-
-
-def _file_digest(path: str) -> str:
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def vision_view(ev: dict, max_images: int | None = None) -> dict:
-    """Copy of the evidence restricted to the images a visual answer needs: duplicates (same file content) removed,
-    at most IMAGES_NEEDED[category] (and max_images) kept, in payload order. Rows whose scan is not sent are marked
-    so the evidence text never claims an image the model did not receive. Rankings and rows are unchanged."""
-    view = copy.deepcopy(ev)
-    cap = IMAGES_NEEDED.get(ev.get("category"), (len(ev["images"]), 1))[0]
-    if max_images:
-        cap = min(cap, max_images)
-    seen, keep = set(), []
-    for im in ev["images"]:
-        d = _file_digest(im["path"])
-        if d not in seen:
-            seen.add(d)
-            keep.append(im)
-    view["images"] = keep[:cap]
-    _sync_attached(view, ev)
-    return view
-
-
-def _sync_attached(view: dict, ev: dict) -> None:
-    sent = {im["visit_id"] for im in view["images"]}
-    dropped = [im["visit_id"] for im in ev["images"] if im["visit_id"] not in sent]
-    for r in _rows(view):
-        if r.get("image_attached") and r["visit_id"] not in sent:
-            r["image_attached"] = False
-            r["image_not_sent"] = True
-    view["disclosures"] = [d for d in view["disclosures"] if not d.startswith("Not sent to the model:")]
-    if dropped:
-        view["disclosures"].append("Not sent to the model: the B-scans of " + ", ".join(dropped) + " (only the scans "
-                                   "the question needs are attached, to stay within the model's context budget).")
-
-
-def _fit_budget(view: dict, ev: dict, vlm) -> tuple[list[dict] | None, str]:
-    """Drop optional images, then shrink the remaining ones, until the request plus MIN_OUTPUT_TOKENS fits the
-    adapter's context budget. Returns (parts, "") or (None, reason) when even the minimum does not fit."""
-    budget = getattr(vlm, "context_tokens", 0) or 0
-    estimate = getattr(vlm, "estimate_tokens", None)
-    if not budget or estimate is None:
-        return request_parts(view), ""
-    floor = IMAGES_NEEDED.get(view.get("category"), (1, 1))[1]
-    sides = getattr(vlm, "image_sides", lambda: [None])()
-    side_i = 0
-    while True:
-        parts = request_parts(view)
-        side = sides[side_i]
-        need = estimate(SYSTEM, parts, side) + MIN_OUTPUT_TOKENS
-        if need <= budget:
-            for p in parts:
-                if p["type"] == "image":
-                    p["max_side"] = side
-            return parts, ""
-        if len(view["images"]) > floor:
-            view["images"] = view["images"][:-1]
-            _sync_attached(view, ev)
-        elif side_i + 1 < len(sides):
-            side_i += 1
-        else:
-            n = len(view["images"])
-            return None, (f"the request needs about {need} tokens ({n} B-scan{'s' * (n != 1)} at {side} px plus the "
-                          f"evidence text and {MIN_OUTPUT_TOKENS} answer tokens), more than the configured context "
-                          f"budget of {budget} tokens. Raise OCT_VLM_CONTEXT together with the model's context window "
-                          "(OCT_VLM_NUM_CTX for Ollama), or lower OCT_VLM_IMAGE_MAX_SIDE")
-
-
-def answer_vlm(ev: dict, vlm, max_images: int | None = None) -> dict:
+def answer_vlm(ev: dict, vlm) -> dict:
     """Any vision-language model behind an adapter with generate(system, parts) -> object with .text, .finish
-    ('stop' | 'length' | 'refusal' | 'error') and .error. Same result handling and grounding as answer_claude.
-    Only the images the question needs are sent (see vision_view); adapters that declare a context budget
-    (context_tokens, estimate_tokens) get a request that fits it, or no request at all."""
-    fail = ("No generated answer: {}. The retrieved evidence is shown unchanged; no model answer was substituted."
-            "\n\nRetrieved evidence without a model:\n" + answer_evidence_only(ev))
-    view = vision_view(ev, max_images)
-    parts, over = _fit_budget(view, ev, vlm)
-    if parts is None:
-        return dict(status="model_error", text=fail.format(f"the model was not called: {over}"), warnings=[],
-                    error="context budget exceeded")
-    sent = [im["visit_id"] for im in view["images"]]
+    ('stop' | 'length' | 'refusal' | 'error') and .error. Same result handling and grounding as answer_claude."""
+    fail = "No generated answer: {}. The retrieved evidence is shown unchanged; no answer was substituted."
     try:
-        reply = vlm.generate(SYSTEM, parts)
+        reply = vlm.generate(SYSTEM, request_parts(ev))
     except Exception as ex:                                   # adapters should not raise; never fabricate if they do
         err = f"{type(ex).__name__}: {redact(ex)}"
         return dict(status="model_error", text=fail.format(f"the model call failed ({err})"), warnings=[], error=err)
@@ -587,18 +473,14 @@ def answer_vlm(ev: dict, vlm, max_images: int | None = None) -> dict:
                     error="empty response")
     warnings = check_grounding(text, ev)
     if reply.finish == "length":
-        return dict(status="model_incomplete", text=text, error="max_tokens", images_sent=sent,
+        return dict(status="model_incomplete", text=text, error="max_tokens",
                     warnings=["the answer was cut off at the output limit and is incomplete"] + warnings)
-    return dict(status="answered", text=text, warnings=warnings, error=None, images_sent=sent)
+    return dict(status="answered", text=text, warnings=warnings, error=None)
 
 
-def answer(ev: dict, backend: str = "evidence", client=None, vlm=None, vision_only: bool = False,
-           max_images: int | None = None) -> dict:
+def answer(ev: dict, backend: str = "evidence", client=None, vlm=None) -> dict:
     """backend: 'evidence' (no model), 'claude' (Anthropic SDK; `client` optional) or 'vlm' (adapter in `vlm`).
-    An abstaining retrieval is answered with its abstention and never reaches any model. With vision_only=True a
-    model backend is used only when the question needs visual interpretation (needs_vision); otherwise the answer is
-    the deterministic one from the retrieved evidence (backend 'deterministic'). max_images caps the B-scans sent to
-    a 'vlm' adapter."""
+    An abstaining retrieval is answered with its abstention and never reaches any model."""
     if backend not in ("evidence", "claude", "vlm"):
         raise ValueError(f"unknown backend {backend!r}")
     if backend == "vlm" and vlm is None:
@@ -606,14 +488,9 @@ def answer(ev: dict, backend: str = "evidence", client=None, vlm=None, vision_on
     if ev["status"] != "retrieved":
         res = dict(status="abstained", text=_abstention(ev), warnings=[], error=None)
         backend, used = "none", "abstained: no model call"
-    elif backend != "evidence" and vision_only and not needs_vision(ev):
-        res = dict(status="answered", text=answer_evidence_only(ev).replace(EVIDENCE_ONLY_NOTE, DETERMINISTIC_NOTE),
-                   warnings=[], error=None)
-        backend, used = "deterministic", evidence_summary(ev)
     else:
-        res = (answer_claude(ev, client) if backend == "claude" else answer_vlm(ev, vlm, max_images)
-               if backend == "vlm" else dict(status="answered", text=answer_evidence_only(ev), warnings=[], error=None))
+        res = (answer_claude(ev, client) if backend == "claude" else answer_vlm(ev, vlm) if backend == "vlm"
+               else dict(status="answered", text=answer_evidence_only(ev), warnings=[], error=None))
         used = evidence_summary(ev)
     return dict(status=res["status"], answer=res["text"], backend=backend, evidence_used=used,
-                warnings=res["warnings"], error=res["error"], disclaimer=DISCLAIMER,
-                images_sent=res.get("images_sent", []))
+                warnings=res["warnings"], error=res["error"], disclaimer=DISCLAIMER)

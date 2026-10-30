@@ -1,7 +1,9 @@
 """Conversation orchestrator: question (+ eye/visit, + optional uploaded scan) -> retrieval -> evidence -> answer.
 
-Every answer goes through phase2's evidence layer (answer.answer), so abstentions never reach a model, the images a
-model sees are exactly the evidence rows' images, and model text is grounding-checked. Routes:
+Retrieval builds the evidence package (phase2 answer.build_unified_evidence, or the app's own scan/upload evidence);
+app/reasoning.py then plans which evidence the original question needs and lets the vision-language model write the
+answer from it. Abstentions never reach a model, the scans a model sees are evidence rows' scans, and the model's
+prose is checked against the recorded values. Routes:
 
   history            phase2.question_router.QuestionAwareRetriever on the selected eye and visit (metadata, edema /
                      anatomy proxies, image similarity, finding labels, mixed, trajectory, abstentions), then
@@ -34,6 +36,7 @@ import question_router as QR  # noqa: E402
 from question_eval import recency_order  # noqa: E402
 
 from app.config import Config  # noqa: E402
+from app import reasoning as RS  # noqa: E402
 from app.uploads import DatasetImageIndex, UploadedScan, embed_scan  # noqa: E402
 
 FINDING_STEMS = ("fluid_irf", "fluid_srf", "drt_me", "ir_hrf", "dril", "disruption_of_ez", "disruption_of_rpe",
@@ -161,9 +164,17 @@ class Assistant:
             ev = self._scan_evidence(question, eye, visit, upload)
         else:
             ev = self._upload_similarity_evidence(question, eye, upload)
-        ans = A.answer(ev, backend, client=client, vlm=self.vlm, vision_only=True,
-                       max_images=self.cfg.max_images)
+        ans = self._answer(ev, backend, client)
         return Turn(question, route, ev, ans, eye, visit, upload=upload)
+
+    def _answer(self, ev: dict, backend: str, client=None) -> dict:
+        """The vision-language model answers from the evidence (app/reasoning.py); 'claude' uses the Anthropic adapter
+        (with `client` when given), 'evidence' answers without a model."""
+        vlm = self.vlm
+        if backend == "claude":
+            from app.vlm import AnthropicVLM
+            vlm, backend = AnthropicVLM(client=client), "vlm"
+        return RS.generate(ev, backend, vlm, self.ep, self.images, self.cfg.max_images)
 
     # --- routes -----------------------------------------------------------------------------------------------------
 
@@ -172,8 +183,7 @@ class Assistant:
         ev = A.build_unified_evidence(u, self.episodes, self.images)
         if shown:
             ev["question"] = shown
-        ans = A.answer(ev, backend, client=client, vlm=self.vlm, vision_only=True,
-                       max_images=self.cfg.max_images)
+        ans = self._answer(ev, backend, client)
         return Turn(ev["question"], "history", ev, ans, eye, visit, unified=u)
 
     def _labels(self, eye: int, visit: str) -> list[dict]:
