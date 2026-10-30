@@ -22,3 +22,6 @@ phase2/results/question_eval_v2/**/eval_*_cda4ea5b_*/per_query_primary.csv
 # Demo app: local secrets and runtime files (uploaded-image copies, caches)
 .env
 app/.runtime/
+
+# Large model checkpoints
+models/retfound_oct/*.pth

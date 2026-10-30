@@ -1,0 +1,26 @@
+{
+  "encoder": "resnet50",
+  "pooling": "gap",
+  "subset": "phase2/data/scan_subset_v1",
+  "n": 2940,
+  "dim": 2048,
+  "device": "cuda",
+  "batch_size": 64,
+  "prep_version": "0aaa6f82c1",
+  "cache": "phase2\\cache\\resnet50__gap__prep0aaa6f82c1",
+  "torch": "2.11.0+cu128",
+  "audit": {
+    "n_images": 2940,
+    "n_unique_sha256": 2935,
+    "n_cached_before": 0,
+    "n_embedded_now": 2935,
+    "modes": {
+      "RGB": 2935
+    },
+    "sizes": {
+      "504x496": 2935
+    },
+    "max_channel_diff": 1,
+    "seconds_embedding": 41.2
+  }
+}

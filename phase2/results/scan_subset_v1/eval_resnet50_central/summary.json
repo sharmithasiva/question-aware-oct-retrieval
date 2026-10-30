@@ -1,0 +1,86 @@
+{
+  "subset": "phase2\\data\\scan_subset_v1",
+  "visit_mode": "central",
+  "embeddings": {
+    "resnet50": "phase2\\results\\scan_subset_v1\\resnet50\\embeddings.npz"
+  },
+  "scan_level": {
+    "resnet50": {
+      "n_scans": 2935,
+      "n_eyes": 37,
+      "dropped_duplicates": 5,
+      "top5_same_eye_rate": 0.9027,
+      "top5_same_eye_chance": 0.0298,
+      "top5_same_eye_ci95_eye_bootstrap": [
+        0.8292,
+        0.9187
+      ],
+      "top1_same_visit_rate": 0.0491,
+      "top1_same_visit_chance": 0.0013,
+      "measures": "identity (same eye / same visit), not relevance"
+    }
+  },
+  "complete_history_eyes": [
+    1,
+    3,
+    6,
+    7,
+    9,
+    11,
+    12,
+    13,
+    19,
+    21,
+    25,
+    61,
+    62,
+    63,
+    64,
+    66,
+    67,
+    68,
+    73,
+    75,
+    77,
+    78,
+    80,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    92,
+    94,
+    96
+  ],
+  "within_eye": {
+    "resnet50": {
+      "n_eyes": 34,
+      "n_queries": 497,
+      "n_pairs": 4849,
+      "image_top1_is_previous_rate": 0.2676,
+      "image_top1_is_previous_chance": 0.1569,
+      "image_top1_is_previous_ci95_eye_bootstrap": [
+        0.2208,
+        0.311
+      ],
+      "spearman_cos_vs_temporal_closeness_pooled": 0.289,
+      "spearman_cos_vs_temporal_closeness_mean_over_eyes": 0.2827,
+      "spearman_temporal_ci95_eye_bootstrap": [
+        0.2131,
+        0.3487
+      ],
+      "partial_spearman_cos_vs_cst_given_gap_pooled": 0.4794,
+      "partial_spearman_cos_vs_cst_given_gap_mean_over_eyes": 0.2153,
+      "partial_cst_ci95_eye_bootstrap": [
+        0.1311,
+        0.2972
+      ],
+      "measures": "temporal / CST association within an eye (no relevance labels)"
+    }
+  },
+  "b1_posthoc": "NOT EVALUATED: B1 key/sheet missing or dev visits lack embeddings"
+}

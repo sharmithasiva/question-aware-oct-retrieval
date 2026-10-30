@@ -1,0 +1,29 @@
+{
+  "encoder": "resnet50",
+  "pooling": "gap",
+  "subset": "phase2/data/atlas_fullhist",
+  "n": 73,
+  "dim": 2048,
+  "device": "cuda",
+  "weights": null,
+  "batch_size": 64,
+  "prep_version": "0aaa6f82c1",
+  "cache": "phase2\\cache\\resnet50__gap__prep0aaa6f82c1",
+  "torch": "2.11.0+cu128",
+  "audit": {
+    "n_images": 73,
+    "n_unique_sha256": 72,
+    "n_cached_before": 72,
+    "n_embedded_now": 0,
+    "modes": {},
+    "sizes": {},
+    "max_channel_diff": 0,
+    "seconds_embedding": 0.0
+  },
+  "check_against": {
+    "path": "phase2\\results\\fullhist\\resnet50\\embeddings.npz",
+    "n_common": 73,
+    "min_cosine": 0.999985,
+    "mean_cosine": 0.999993
+  }
+}
