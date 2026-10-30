@@ -1,0 +1,25 @@
+{
+  "created_utc": "2026-10-30T07:59:05+00:00",
+  "subset": "phase2/data/atlas_fullhist",
+  "embeddings": {
+    "resnet50": "phase2/results/fullhist/resnet50/embeddings.npz",
+    "dinov2_vits14": "phase2/results/fullhist/dinov2_vits14/embeddings.npz"
+  },
+  "visit_mode": "central",
+  "eyes": [
+    11,
+    25,
+    61
+  ],
+  "min_candidates": 6,
+  "not_evaluable": {
+    "image_similarity (all eyes)": "no visual relevance labels beyond the 3 dev eyes of B1 (reported separately)",
+    "pathology: fluid presence / first appearance / improvement (visit ranking)": "OLIVES finding labels exist only for the first and last visit of each eye, so no visit ranking over a history can be labelled; scan-level finding detection is evaluated in pathology_probe.py",
+    "mixed (image + metadata)": "no ground truth exists for the combined answer"
+  },
+  "bootstrap": {
+    "n": 10000,
+    "seed": 20261024,
+    "min_eyes": 5
+  }
+}

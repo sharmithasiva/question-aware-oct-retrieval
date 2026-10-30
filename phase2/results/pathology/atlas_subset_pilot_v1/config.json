@@ -1,0 +1,16 @@
+{
+  "created_utc": "2026-10-30T07:59:10+00:00",
+  "subset": "phase2/data/atlas_subset",
+  "embeddings": {
+    "resnet50": "phase2/results/resnet50/embeddings.npz",
+    "dinov2_vits14": "phase2/results/dinov2_vits14/embeddings.npz"
+  },
+  "min_pos": 10,
+  "seed": 20261030,
+  "n_boot": 2000,
+  "splits": {
+    "train": 6,
+    "val": 2
+  },
+  "labels": "OLIVES_Dataset_Labels/full_labels/Biomarker_Clinical_Data_Images.csv"
+}

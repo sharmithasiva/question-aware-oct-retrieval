@@ -49,6 +49,9 @@ phase2/                         Phase 2 (all new work; Phase 1 is imported read-
   hybrid_retriever.py             metadata + image hybrid: eligibility first, abstention preserved, inspectable
   large_eval.py                   E1/E2-definition, Tier A and post-hoc B1 metrics for any subset
   RETRIEVAL_V2.md                 stage-2 commands, hybrid policy, results and limitations
+  question_router.py              unified question-aware routing (metadata / image / finding labels / mixed)
+  e3_question_eval.py, pathology_probe.py, report_v3.py   E3, label-based finding probe, consolidated tables
+  RETRIEVAL_V3.md                 Phase 3 architecture, routing table, pilot results, pending experiments, claims
   make_annotation_packet.py       blinded annotation packets for human relevance grading
   make_colab_bundle.py            builds the zip the Colab notebook uploads
   data/atlas_subset/              96 verified B-scans (8 eyes x 4 visits x 3 scans) + manifest/provenance

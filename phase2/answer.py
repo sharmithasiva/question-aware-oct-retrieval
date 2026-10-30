@@ -65,6 +65,22 @@ ABSTENTION_GUIDANCE = {
     "clarification_needed": "The question was not understood. Try rephrasing, for example: \"When was the CST "
                             "most similar to today's?\", \"Compare with the previous visit.\" or \"Which earlier "
                             "visit's OCT looks most like today's?\"",
+    "insufficient_labels": "Finding labels (OLIVES per-B-scan annotations) exist only for the first and last visit "
+                           "of each eye, so this question cannot be answered for this visit history. The system does "
+                           "not infer findings from image similarity.",
+    "unsupported_image_finding": "This asks about an OCT finding the system neither extracts from images nor has "
+                                 "labels for. Labelled findings: IRF, SRF, DRT/ME, HRF, DRIL, EZ or RPE disruption, "
+                                 "serous PED, atrophy, VMT, SHRM (first and last visit only). Image-similarity "
+                                 "questions are supported.",
+}
+
+CATEGORY_BASIS = {
+    "edema_proxy": "Edema question: earlier visits ranked by central subfield thickness (CST) as a disclosed proxy. "
+                   "OCT B-scans of the evidence visits are attached for inspection.",
+    "pathology": "Finding question: answered only from OLIVES per-B-scan finding labels; image similarity is not "
+                 "used to detect findings.",
+    "mixed": "Mixed question: image-similarity ranking for the image part and recorded measurements for the "
+             "metadata part.",
 }
 
 SYSTEM = """You answer a clinician's question about the OCT visit history of one eye, for a research demo.
@@ -76,7 +92,9 @@ visit marked "selected" is the retrieval result, and any "runner-up" visits are 
 evidence shows for the question. Do not invent visits, dates, measurements, treatments, diagnoses or imaging \
 findings, and do not treat a similarity score as a clinical measurement. When you describe an image, describe only \
 what is visible in that single B-scan and say that one B-scan does not represent the whole volume. If the evidence \
-does not answer the question, say so plainly.
+does not answer the question, say so plainly. The message may also contain disclosures, finding labels \
+(OLIVES per-B-scan annotations, given as the fraction of a visit's labelled B-scans) and computed facts such as a \
+CST change; use them as stated, and repeat any disclosure that limits the answer.
 
 This is a research prototype, not clinical advice: do not give a diagnosis or a treatment recommendation. Answer \
 in 3 to 6 sentences. End with one line starting "Evidence used:" that lists the visit IDs you relied on."""
@@ -129,6 +147,71 @@ def build_evidence(result, episodes: pd.DataFrame, images: dict[str, Path], ques
     return ev
 
 
+def build_unified_evidence(u, episodes: pd.DataFrame, images: dict[str, Path]) -> dict:
+    """One evidence package for a question_router.UnifiedResult (all categories, one schema).
+
+    Rows come from each component in order (metadata, image similarity, finding labels) and are merged by visit, each
+    keeping the components that selected it. As in build_evidence, a hard-rule metadata component contributes only
+    its selected visit; the image payload is derived from the rows (current visit first) when the category uses
+    images, and finding labels are restricted to eligible earlier visits and today."""
+    ep = episodes.set_index("visit_id")
+    h = u.primary
+    ev = dict(question=u.question, status=u.status, category=u.category, route=h.route if h else u.category,
+              reason=u.reason or "", intent=u.intent, operation=_operation(u.intent),
+              current=_visit_row(ep, u.query_visit_id), retrieved=[], images=[], uses_images=bool(u.uses_images),
+              n_candidates=len(u.candidates), eligible=list(u.candidates), eye_id=int(u.eye_id),
+              components=[dict(name=c.name, status=c.status, explanation=c.explanation) for c in u.components],
+              disclosures=list(u.disclosures), facts=[], biomarkers=list(u.biomarkers),
+              guidance=ABSTENTION_GUIDANCE.get(u.status, "") if u.status != "retrieved" else "")
+    ev["ranking_basis"] = CATEGORY_BASIS.get(u.category) or ROUTE_BASIS.get(ev["route"], "")
+    ev["current"]["image_attached"] = False
+    if u.abstained:
+        return ev
+    rows: dict[str, dict] = {}
+    for c in u.components:
+        if not c.ranking:
+            continue
+        op = _operation(c.hybrid.intent) if c.hybrid is not None else None
+        n = 1 if (c.name == "metadata" and op in FILTER_OPS) or c.name == "metadata_change" else TOP_N
+        if c.name == "metadata" and n == 1:
+            ev["ranking_basis"] += (" The metadata visit shown is the one meeting the question's condition; lower "
+                                    "ranks may not meet it and are not passed on.")
+        for rank, vid in enumerate(c.ranking[:n], 1):
+            tag = f"{c.name} #{rank}"
+            if vid in rows:
+                rows[vid]["sources"].append(tag)
+                continue
+            row = _visit_row(ep, vid)
+            scores = c.hybrid.image_scores if c.hybrid is not None else {}
+            row.update(rank=len(rows) + 1, role="selected" if rank == 1 else "runner-up", sources=[tag],
+                       image_cosine=None if vid not in scores else round(scores[vid], 4))
+            rows[vid] = row
+        if c.name == "metadata_change":
+            d = c.details
+            unit = " µm" if d["target"] == "cst" else " letters"
+            ev["facts"].append(f"{d['target'].upper()} changed from {d['from_value']:.0f}{unit} at {d['from_visit']} "
+                               f"to {d['to_value']:.0f}{unit} today ({d['delta']:+.0f}{unit})")
+    ev["retrieved"] = list(rows.values())
+    ev["current"]["image_attached"] = ev["uses_images"] and u.query_visit_id in images
+    for r in ev["retrieved"]:
+        r["image_attached"] = ev["uses_images"] and r["visit_id"] in images
+    ev["images"] = [dict(visit_id=v["visit_id"], role=role, path=str(images[v["visit_id"]]))
+                    for v, role in [(ev["current"], "current")] + [(r, "retrieved") for r in ev["retrieved"]]
+                    if v["image_attached"]]
+    if ev["uses_images"] and not ev["current"]["image_attached"]:
+        ev["disclosures"].append("No B-scan is available for today's visit.")
+    missing = [r["visit_id"] for r in ev["retrieved"] if ev["uses_images"] and not r["image_attached"]]
+    if missing:
+        ev["disclosures"].append(f"No B-scan is available for {', '.join(missing)}.")
+    problems = evidence_inconsistencies(ev)
+    assert not problems, f"inconsistent evidence: {problems}"
+    return ev
+
+
+def _uses_images(ev: dict) -> bool:
+    return ev.get("uses_images", ev["route"] in IMAGE_ROUTES)
+
+
 def evidence_inconsistencies(ev: dict) -> list[str]:
     """Mismatches between the evidence rows and the image payload (empty list = consistent)."""
     rows = [ev["current"]] + ev["retrieved"]
@@ -139,8 +222,12 @@ def evidence_inconsistencies(ev: dict) -> list[str]:
         problems.append(f"images sent {sent} != visits marked image_attached {flagged}")
     if set(sent) - {v["visit_id"] for v in rows}:
         problems.append(f"images of visits outside the evidence: {sorted(set(sent) - {v['visit_id'] for v in rows})}")
-    if ev["route"] not in IMAGE_ROUTES and sent:
-        problems.append("images sent on a non-image route")
+    if not _uses_images(ev) and sent:
+        problems.append("images sent on a route that does not use images")
+    labelled = {b["visit_id"] for b in ev.get("biomarkers", [])}
+    allowed = {ev["current"]["visit_id"]} | set(ev.get("eligible", [])) if "eligible" in ev else None
+    if allowed is not None and labelled - allowed:
+        problems.append(f"finding labels of non-eligible visits: {sorted(labelled - allowed)}")
     return problems
 
 
@@ -148,7 +235,7 @@ def evidence_summary(ev: dict) -> str:
     """What was actually given to the answer generator, by visit ID."""
     ids = [v["visit_id"] for v in ev["retrieved"]]
     text = f"{len(ids)} earlier visit(s) as text: {', '.join(ids) or 'none'}"
-    if ev["route"] in IMAGE_ROUTES:
+    if _uses_images(ev):
         cur = ev["current"]["visit_id"] if ev["current"]["image_attached"] else "none"
         prior = [i["visit_id"] for i in ev["images"] if i["role"] == "retrieved"]
         missing = [v["visit_id"] for v in ev["retrieved"] if not v["image_attached"]]
@@ -157,7 +244,9 @@ def evidence_summary(ev: dict) -> str:
         if missing:
             text += f"; no B-scan available for {', '.join(missing)}"
     else:
-        text += "; no B-scans (metadata route)"
+        text += "; no B-scans (this question type does not use images)"
+    if ev.get("biomarkers"):
+        text += "; finding labels for " + ", ".join(b["visit_id"] for b in ev["biomarkers"])
     return text
 
 
@@ -168,19 +257,35 @@ def _fmt(v: dict) -> str:
     return f"{v['visit_id']} (visit {v['visit_label']}{wk}): CST {cst}, BCVA {bcva}"
 
 
+def _fmt_labels(b: dict) -> str:
+    parts = [f"{k}: {'present' if x['present'] else 'absent'} ({x['frac'] * 100:.0f}% of "
+             f"{b['n_scans'] or '?'} labelled B-scans)" for k, x in b["labels"].items()]
+    return f"{b['visit_id']}: " + ("; ".join(parts) or "no label for this finding")
+
+
 def evidence_text(ev: dict) -> str:
-    lines = [f"Question: {ev['question']}", f"Eye: {ev['eye_id']}", f"Current visit: {_fmt(ev['current'])}",
-             f"Retrieval route: {ev['route']} (status {ev['status']}{'; ' + ev['reason'] if ev['reason'] else ''})",
-             f"How visits were selected: {ev['ranking_basis']}"]
+    lines = [f"Question: {ev['question']}", f"Eye: {ev['eye_id']}", f"Current visit: {_fmt(ev['current'])}"]
+    if "category" in ev:
+        lines.append(f"Question category: {ev['category']}; evidence sources: "
+                     + ("; ".join(f"{c['name']} ({c['status']}): {c['explanation']}" for c in ev["components"])
+                        or "none"))
+    lines += [f"Retrieval route: {ev['route']} (status {ev['status']}{'; ' + ev['reason'] if ev['reason'] else ''})",
+              f"How visits were selected: {ev['ranking_basis']}"]
+    lines += [f"Disclosure: {d}" for d in ev.get("disclosures", [])]
     if ev["retrieved"]:
         lines.append(f"Retrieved earlier visits ({ev['n_candidates']} eligible earlier visits of this eye), best first:")
         for v in ev["retrieved"]:
             sim = "" if v["image_cosine"] is None else f"; image-embedding cosine {v['image_cosine']:.3f}"
-            img = "" if ev["route"] not in IMAGE_ROUTES else (
+            img = "" if not _uses_images(ev) else (
                 "; B-scan attached" if v["image_attached"] else "; no B-scan available")
-            lines.append(f"  {v['rank']}. [{v['role']}] {_fmt(v)}{sim}{img}")
+            src = f" via {', '.join(v['sources'])}" if v.get("sources") else ""
+            lines.append(f"  {v['rank']}. [{v['role']}{src}] {_fmt(v)}{sim}{img}")
     else:
         lines.append("No earlier visit was retrieved.")
+    lines += [f"Fact: {f}" for f in ev.get("facts", [])]
+    if ev.get("biomarkers"):
+        lines.append("Finding labels (OLIVES, per visit):")
+        lines += [f"  {_fmt_labels(b)}" for b in ev["biomarkers"]]
     if ev["images"]:
         lines.append("Attached B-scans (central scan of each visit, in this order): "
                      + ", ".join(f"{i['visit_id']} ({i['role']})" for i in ev["images"]))
@@ -199,6 +304,21 @@ def answer_evidence_only(ev: dict) -> str:
     if ev["status"] != "retrieved":
         return _abstention(ev)
     top = ev["retrieved"][0]
+    cat = ev.get("category")
+    if cat == "pathology":
+        lab = next((b for b in ev["biomarkers"] if b["visit_id"] == top["visit_id"]), None)
+        return (f"From the OLIVES finding labels, the answer is {top['visit_id']} (visit {top['visit_label']})"
+                + (f": {_fmt_labels(lab)}" if lab else "") + ". (Evidence-only mode: no language model was used.)"
+                "\nEvidence used: " + ", ".join(v["visit_id"] for v in ev["retrieved"]))
+    if cat == "mixed":
+        return (f"Image part: the top-ranked earlier visit (image similarity fused with CST closeness) is {_fmt(top)}. "
+                + " ".join(f"{f}." for f in ev.get("facts", [])) + f" Current visit: {_fmt(ev['current'])}. "
+                "(Evidence-only mode: no language model was used.)\nEvidence used: "
+                + ", ".join(v["visit_id"] for v in ev["retrieved"]))
+    if cat == "edema_proxy":
+        return (f"Using CST as a proxy for edema (not a clinical edema grade), the selected earlier visit is "
+                f"{_fmt(top)}. Current visit: {_fmt(ev['current'])}. (Evidence-only mode: no language model was "
+                "used.)\nEvidence used: " + ", ".join(v["visit_id"] for v in ev["retrieved"]))
     kind = {"image+proxy_rrf": "top-ranked earlier visit (image similarity fused with CST closeness)",
             "image": "top-ranked earlier visit by image similarity",
             "metadata+image_rrf": "top-ranked earlier visit (metadata rule fused with image similarity)"}.get(
@@ -233,7 +353,7 @@ def redact(msg: str, limit: int = 300) -> str:
 def check_grounding(text: str, ev: dict) -> list[str]:
     """Warnings where the model's text is not supported by the evidence it was given (empty list = no issue)."""
     visits = [ev["current"]] + ev["retrieved"]
-    known = {v["visit_id"] for v in visits}
+    known = {v["visit_id"] for v in visits} | {b["visit_id"] for b in ev.get("biomarkers", [])}
     warns = []
     unknown = sorted(set(VISIT_ID_RE.findall(text)) - known)
     if unknown:

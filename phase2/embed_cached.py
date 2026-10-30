@@ -38,8 +38,47 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "phase2"))
 import oct_image as OI  # noqa: E402
 
-POOLINGS = {"resnet50": ("gap", "gem"), "dinov2_vits14": ("cls", "patchmean", "cls_patchmean")}
-DEFAULT_POOLING = {"resnet50": "gap", "dinov2_vits14": "cls"}
+POOLINGS = {"resnet50": ("gap", "gem"), "dinov2_vits14": ("cls", "patchmean", "cls_patchmean"),
+            "retfound_oct": ("patchmean", "cls")}
+DEFAULT_POOLING = {"resnet50": "gap", "dinov2_vits14": "cls", "retfound_oct": "patchmean"}
+ENCODER_CHOICES = OI.ENCODERS + ("retfound_oct",)
+RETFOUND_ARCH = "vit_large_patch16_224"      # RETFound_mae: ViT-L/16, embed 1024, depth 24, heads 16 (models_vit.py)
+
+
+def file_sha(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_retfound(weights: Path, device, arch: str | None = None, trust_checkpoint: bool = False):
+    """RETFound-OCT (Zhou et al., Nature 2023; github.com/rmaphoh/RETFound, CC BY-NC 4.0) as a frozen feature
+    extractor. The MAE-pretrained checkpoint (e.g. RETFound_mae_natureOCT.pth from the gated Hugging Face repo
+    YukunZhou/RETFound_mae_natureOCT) is loaded into a timm ViT without a classification head; the decoder and mask
+    token are dropped. Features are the checkpoint's final-LayerNorm tokens: RETFound's fine-tuning `global_pool`
+    averages patch tokens but adds a newly initialised fc_norm, so the pretrained `norm` is used here instead.
+    Loading uses torch.load(weights_only=True); a checkpoint that pickles other objects needs trust_checkpoint=True.
+    Returns (model, dim)."""
+    import timm
+    import torch
+    try:
+        ckpt = torch.load(weights, map_location="cpu", weights_only=not trust_checkpoint)
+    except Exception as ex:
+        raise RuntimeError(f"could not load {weights} with weights_only={not trust_checkpoint} ({type(ex).__name__}). "
+                           "If it is the official RETFound checkpoint from a source you trust, re-run with "
+                           "--trust-checkpoint.") from ex
+    state = ckpt.get("model", ckpt) if isinstance(ckpt, dict) else ckpt
+    state = {k.removeprefix("module."): v for k, v in state.items()
+             if not k.startswith(("decoder", "mask_token", "head", "fc_norm"))}
+    arch = arch or RETFOUND_ARCH
+    model = timm.create_model(arch, pretrained=False, num_classes=0, global_pool="")
+    res = model.load_state_dict(state, strict=False)
+    if res.missing_keys:
+        raise RuntimeError(f"checkpoint does not match {arch}: {len(res.missing_keys)} missing encoder weights, "
+                           f"e.g. {res.missing_keys[:3]}")
+    return model.eval().to(device), model.num_features
 CACHE_ROOT = ROOT / "phase2" / "cache"
 
 
@@ -50,26 +89,36 @@ def prep_version() -> str:
     return hashlib.sha256(src.encode()).hexdigest()[:10]
 
 
-def make_encoder(name: str, pooling: str, device):
+def make_encoder(name: str, pooling: str, device, weights: Path | None = None, trust_checkpoint: bool = False,
+                 arch: str | None = None):
     """Returns (fn: float32 array (N, 3, H, W) -> (N, D) float32, D). Pretrained weights only; eval mode."""
     import torch
     if pooling not in POOLINGS[name]:
         raise ValueError(f"pooling {pooling!r} not available for {name}; choose from {POOLINGS[name]}")
-    model, dim = OI.load_encoder(name, device)
-    if name == "resnet50" and pooling == "gem":
-        body = torch.nn.Sequential(*list(model.children())[:-2]).eval()   # up to layer4; drops avgpool + fc
+    if name == "retfound_oct":
+        if weights is None:
+            raise ValueError("retfound_oct needs --weights (the RETFound_mae_natureOCT checkpoint; gated download)")
+        model, dim = load_retfound(Path(weights), device, arch, trust_checkpoint)
 
         def f(x):
-            fm = body(x).clamp(min=1e-6)
-            return fm.pow(3).mean((2, 3)).pow(1 / 3)
-    elif name == "dinov2_vits14" and pooling != "cls":
-        def f(x):
-            o = model.forward_features(x)
-            pm = o["x_norm_patchtokens"].mean(1)
-            return pm if pooling == "patchmean" else torch.cat([o["x_norm_clstoken"], pm], 1)
-        dim = dim if pooling == "patchmean" else 2 * dim
+            tok = model.forward_features(x)                    # (N, 1 + patches, D), after the pretrained LayerNorm
+            return tok[:, 0] if pooling == "cls" else tok[:, model.num_prefix_tokens:].mean(1)
     else:
-        f = model
+        model, dim = OI.load_encoder(name, device)
+        if name == "resnet50" and pooling == "gem":
+            body = torch.nn.Sequential(*list(model.children())[:-2]).eval()   # up to layer4; drops avgpool + fc
+
+            def f(x):
+                fm = body(x).clamp(min=1e-6)
+                return fm.pow(3).mean((2, 3)).pow(1 / 3)
+        elif name == "dinov2_vits14" and pooling != "cls":
+            def f(x):
+                o = model.forward_features(x)
+                pm = o["x_norm_patchtokens"].mean(1)
+                return pm if pooling == "patchmean" else torch.cat([o["x_norm_clstoken"], pm], 1)
+            dim = dim if pooling == "patchmean" else 2 * dim
+        else:
+            f = model
 
     def run(batch: np.ndarray) -> np.ndarray:
         with torch.inference_mode():
@@ -128,7 +177,10 @@ def embed_subset(m: pd.DataFrame, subset: Path, encode, cache: Cache, batch_size
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--subset", type=Path, required=True)
-    ap.add_argument("--encoder", choices=OI.ENCODERS, default="resnet50")
+    ap.add_argument("--encoder", choices=ENCODER_CHOICES, default="resnet50")
+    ap.add_argument("--weights", type=Path, help="local checkpoint (required for retfound_oct)")
+    ap.add_argument("--trust-checkpoint", action="store_true",
+                    help="allow torch.load(weights_only=False) for a checkpoint from a trusted source")
     ap.add_argument("--pooling")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--batch-size", type=int, default=64)
@@ -146,8 +198,9 @@ def main(argv=None) -> int:
     if not ok.all():
         raise SystemExit(f"checksum mismatch ({(~ok).sum()} images): {m[~ok].image_key.tolist()[:5]}")
     device = OI.pick_device()
-    encode, dim = make_encoder(a.encoder, pooling, device)
-    cache = Cache(a.cache_root / f"{a.encoder}__{pooling}__prep{prep_version()}")
+    encode, dim = make_encoder(a.encoder, pooling, device, a.weights, a.trust_checkpoint)
+    wtag = f"__w{file_sha(a.weights)[:10]}" if a.weights else ""         # separate cache per checkpoint
+    cache = Cache(a.cache_root / f"{a.encoder}__{pooling}__prep{prep_version()}{wtag}")
     E, audit = embed_subset(m, a.subset, encode, cache, a.batch_size, log=lambda s: print(s, file=sys.stderr))
     assert E.shape == (len(m), dim)
 
@@ -156,6 +209,7 @@ def main(argv=None) -> int:
              encoder=np.array(tag))
     m.drop(columns=["local_path"]).to_csv(out / "embedding_index.csv", index=False)
     info = dict(encoder=a.encoder, pooling=pooling, subset=a.subset.as_posix(), n=len(m), dim=dim, device=str(device),
+                weights=None if not a.weights else dict(file=a.weights.name, sha256=file_sha(a.weights)),
                 batch_size=a.batch_size, prep_version=prep_version(), cache=str(cache.path.relative_to(ROOT))
                 if cache.path.is_relative_to(ROOT) else str(cache.path), torch=torch.__version__, audit=audit)
     if a.check_against:

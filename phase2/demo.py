@@ -1,7 +1,9 @@
-"""Question -> hybrid retrieval -> answer demo (research prototype; not clinical advice).
+"""Unified question-aware demo: question -> routing -> metadata / image / finding-label retrieval -> one evidence
+package -> grounded answer (research prototype; not clinical advice).
 
-Shows, for one question asked at one visit of one eye: the metadata, image and final hybrid rankings, the OCT
-B-scans used (image questions), the generated answer and the evidence it was given.
+Shows, for one question asked at one visit of one eye: the question category and the evidence sources used (and why),
+the selected visits with their metadata, the OCT B-scans given to the answer generator, finding labels where used,
+disclosures, the generated answer, and all eligible visits' metadata / image / final ranks.
 
   python phase2/demo.py --eye 25 --question "Which earlier visit's OCT looks most like today's?"
   python phase2/demo.py --eye 61 --visit 01-013_W52 --question "Most recent prior visit with CST above today's value?"
@@ -26,13 +28,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "phase2"))
 import answer as A  # noqa: E402
 import hybrid_retriever as H  # noqa: E402
+import question_router as QR  # noqa: E402
 import oct_image as OI  # noqa: E402
 
 DEFAULT_SUBSET = ROOT / "phase2/data/atlas_fullhist"
 DEFAULT_EMB = ROOT / "phase2/results/fullhist/resnet50/embeddings.npz"
 EXAMPLES = [
     "Which earlier visit's OCT looks most like today's?",
-    "At which earlier visit was the retinal fluid/thickening most similar to today?",
+    "When was CST highest?",
+    "When was edema worst?",
+    "When did intraretinal fluid first appear?",
+    "What was the largest consecutive CST increase?",
+    "Compare anatomical appearance across visits",
+    "Which earlier visit looks similar, and how did CST change?",
     "When was the CST most similar to today's measurement?",
     "Compare with the previous visit.",
     "Most recent prior visit with CST above today's value?",
@@ -61,7 +69,8 @@ class Demo:
 
     def _setup(self, episodes, visit_emb, images, eyes, source):
         self.episodes, self.images, self.eyes, self.source = episodes, images, [int(e) for e in eyes], source
-        self.retriever = H.HybridRetriever(episodes, visit_emb)          # default policy: no fusion for metadata ops
+        self.router = QR.QuestionAwareRetriever(episodes, visit_emb)
+        self.retriever = self.router.hybrid                # the safe hybrid (no fusion for metadata ops), for ablations
 
     def latest_visit(self, eye: int) -> str:
         h = self.episodes[self.episodes.eye_id == eye]
@@ -74,13 +83,15 @@ class Demo:
         if not question or not question.strip():
             raise ValueError("empty question")
         visit = visit or self.latest_visit(eye)
-        res = self.retriever.retrieve(question, eye, visit)
-        ev = A.build_evidence(res, self.episodes, self.images, question)
-        return dict(result=res, evidence=ev, answer=A.answer(ev, backend, client))
+        u = self.router.retrieve(question, eye, visit)
+        ev = A.build_unified_evidence(u, self.episodes, self.images)
+        return dict(unified=u, result=u.primary, evidence=ev, answer=A.answer(ev, backend, client))
 
 
 def _ranks(r) -> pd.DataFrame:
-    """Per-candidate ranks, best final rank first (an empty table when the eye has no earlier visit)."""
+    """Per-candidate ranks, best final rank first (empty when there is no ranking or no earlier visit)."""
+    if r is None:
+        return pd.DataFrame()
     t = r.table()
     return t if t.empty else t.sort_values("final_rank", na_position="last")
 
@@ -88,7 +99,8 @@ def _ranks(r) -> pd.DataFrame:
 def to_text(out: dict) -> str:
     r, ev, a = out["result"], out["evidence"], out["answer"]
     t = _ranks(r)
-    lines = ["NOTE: " + A.DISCLAIMER, "", A.evidence_text(ev), "", f"status={r.status} route={r.route} intent={r.intent}",
+    lines = ["NOTE: " + A.DISCLAIMER, "", A.evidence_text(ev), "",
+             f"category={ev.get('category', '-')} status={ev['status']} route={ev['route']} intent={ev['intent']}",
              "", "All eligible earlier visits (metadata / CST proxy / image / final ranks):", t.to_string(index=False), "",
              f"ANSWER [{a['status']}, backend={a['backend']}]: {a['answer']}", f"Evidence given: {a['evidence_used']}"]
     lines += [f"WARNING: {w}" for w in a["warnings"]]
@@ -120,11 +132,13 @@ def to_html(out: dict, source: dict | None = None) -> str:
               "model_refused": ("err", "The language model declined: no answer was generated."),
               "model_incomplete": ("err", "The generated answer is incomplete.")}.get(a["status"])
     rows = "".join(
-        f"<tr><td>{v['rank']}</td><td>{e(v['role'])}</td><td>{e(v['visit_id'])}</td><td>{e(v['visit_label'])}</td>"
+        f"<tr><td>{v['rank']}</td><td>{e(v['role'])}</td><td>{e(', '.join(v.get('sources', [])))}</td>"
+        f"<td>{e(v['visit_id'])}</td><td>{e(v['visit_label'])}</td>"
         f"<td>{_fmt_num(v['week'])}</td><td>{_fmt_num(v['cst'], ' µm')}</td><td>{_fmt_num(v['bcva'])}</td>"
         f"<td>{_fmt_cos(v['image_cosine'])}</td><td>{'yes' if v['image_attached'] else 'no'}</td></tr>"
         for v in ev["retrieved"])
-    evidence_table = ("<table><tr><th>Rank</th><th>Role</th><th>Visit</th><th>Label</th><th>Week</th><th>CST</th>"
+    evidence_table = ("<table><tr><th>Rank</th><th>Role</th><th>Selected by</th><th>Visit</th><th>Label</th>"
+                      "<th>Week</th><th>CST</th>"
                       "<th>BCVA (letters)</th><th>Image-embedding cosine</th><th>B-scan sent</th></tr>" + rows + "</table>") if rows else \
         "<p>No earlier visit was selected.</p>"
     table = _ranks(r)
@@ -146,13 +160,24 @@ def to_html(out: dict, source: dict | None = None) -> str:
         f"<th>BCVA (letters)</th></tr><tr><td>{ev['eye_id']}</td><td>{e(cur['visit_id'])}</td>"
         f"<td>{e(cur['visit_label'])}</td><td>{_fmt_num(cur['week'])}</td><td>{_fmt_num(cur['cst'], ' µm')}</td>"
         f"<td>{_fmt_num(cur['bcva'])}</td></tr></table>",
-        f"<h3>Retrieval</h3><p>Route <b>{e(r.route)}</b> (status <b>{e(r.status)}</b>; parsed intent "
-        f"<code>{e(r.intent)}</code>). {e(ev['ranking_basis'])}</p>",
+        f"<h3>How the question was routed</h3><p>Category <b>{e(ev.get('category', ev['route']))}</b>, status "
+        f"<b>{e(ev['status'])}</b>; frozen parser intent <code>{e(ev['intent'])}</code>. {e(ev['ranking_basis'])}</p>",
     ]
+    comps = ev.get("components", [])
+    if comps:
+        parts.append("<table><tr><th>Evidence source</th><th>Status</th><th>Why / how</th></tr>" + "".join(
+            f"<tr><td>{e(c['name'])}</td><td>{e(c['status'])}</td><td>{e(c['explanation'] or '')}</td></tr>"
+            for c in comps) + "</table>")
+    parts += [f"<p class='note'>{e(d)}</p>" for d in ev.get("disclosures", [])]
     if a["status"] == "abstained":
         parts.append(f"<p class='abst'><b>{e(banner[1])}</b> Reason: {e(ev['reason'] or 'none given')}. "
                      f"{e(ev['guidance'])}</p>")
-    parts += [f"<h3>Selected evidence</h3>{evidence_table}",
+    facts = "".join(f"<li>{e(f)}</li>" for f in ev.get("facts", []))
+    labels = "".join(f"<li>{e(A._fmt_labels(b))}</li>" for b in ev.get("biomarkers", []))
+    parts += [f"<h3>Selected evidence</h3>{evidence_table}"
+              + (f"<h4>Computed from recorded measurements</h4><ul>{facts}</ul>" if facts else "")
+              + (f"<h4>Finding labels (OLIVES; first and last visit of each eye only)</h4><ul>{labels}</ul>"
+                 if labels else ""),
               f"<h3>Answer <small>({e(a['backend'])}, {e(a['status'])})</small></h3>"]
     if banner and a["status"] != "abstained":
         parts.append(f"<p class='{banner[0]}'><b>{e(banner[1])}</b></p>")

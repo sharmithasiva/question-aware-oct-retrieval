@@ -245,5 +245,5 @@ def test_inconsistency_check_catches_the_reported_class_of_mismatch(demo):
     assert A.evidence_inconsistencies(bad)
     meta = demo.run(CST_SIMILAR_Q, 901)["evidence"]
     assert meta["images"] == [] and not any(v["image_attached"] for v in [meta["current"]] + meta["retrieved"])
-    assert "no B-scans (metadata route)" in A.evidence_summary(meta)
+    assert "no B-scans (this question type does not use images)" in A.evidence_summary(meta)
     assert A.evidence_inconsistencies(dict(meta, images=ev["images"]))   # images on a metadata route are flagged

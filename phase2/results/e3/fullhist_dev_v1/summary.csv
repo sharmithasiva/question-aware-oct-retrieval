@@ -1,0 +1,83 @@
+category,group,system,gt_source,n_queries,n_eyes,n_patients,coverage,recall1,recall5,hit1,mrr,ndcg5,primary_metric,primary_ci95_eye_bootstrap
+temporal_previous,temporal,latest_prior,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_previous,temporal,metadata_only,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_previous,temporal,image_resnet50,structural (visit order),55,3,3,1.0,0.2909,0.6909,0.2909,0.4787,0.5046,mrr,n_eyes < 5
+temporal_previous,temporal,safe_hybrid_resnet50,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_previous,temporal,question_aware_resnet50,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_previous,temporal,image_dinov2_vits14,structural (visit order),55,3,3,1.0,0.1818,0.6364,0.1818,0.3823,0.412,mrr,n_eyes < 5
+temporal_previous,temporal,safe_hybrid_dinov2_vits14,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_previous,temporal,question_aware_dinov2_vits14,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_previous,temporal,random_expected,structural (visit order),55,3,3,1.0,0.0796,0.398,0.0796,0.2439,0.2347,mrr,n_eyes < 5
+temporal_baseline,temporal,latest_prior,structural (visit order),55,3,3,1.0,0.0,0.0,0.0,0.0796,0.0,mrr,n_eyes < 5
+temporal_baseline,temporal,metadata_only,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_baseline,temporal,image_resnet50,structural (visit order),55,3,3,1.0,0.0364,0.1455,0.0364,0.1465,0.0895,mrr,n_eyes < 5
+temporal_baseline,temporal,safe_hybrid_resnet50,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_baseline,temporal,question_aware_resnet50,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_baseline,temporal,image_dinov2_vits14,structural (visit order),55,3,3,1.0,0.0,0.2545,0.0,0.1454,0.1178,mrr,n_eyes < 5
+temporal_baseline,temporal,safe_hybrid_dinov2_vits14,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_baseline,temporal,question_aware_dinov2_vits14,structural (visit order),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+temporal_baseline,temporal,random_expected,structural (visit order),55,3,3,1.0,0.0796,0.398,0.0796,0.2439,0.2347,mrr,n_eyes < 5
+cst_highest,cst_metadata,latest_prior,metadata (frozen v1 key: max CST),55,3,3,1.0,0.0545,0.2,0.0545,0.1742,0.1254,mrr,n_eyes < 5
+cst_highest,cst_metadata,metadata_only,metadata (frozen v1 key: max CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_highest,cst_metadata,image_resnet50,metadata (frozen v1 key: max CST),55,3,3,1.0,0.0727,0.2545,0.0727,0.1993,0.1637,mrr,n_eyes < 5
+cst_highest,cst_metadata,safe_hybrid_resnet50,metadata (frozen v1 key: max CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_highest,cst_metadata,question_aware_resnet50,metadata (frozen v1 key: max CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_highest,cst_metadata,image_dinov2_vits14,metadata (frozen v1 key: max CST),55,3,3,1.0,0.0182,0.3091,0.0182,0.1739,0.1553,mrr,n_eyes < 5
+cst_highest,cst_metadata,safe_hybrid_dinov2_vits14,metadata (frozen v1 key: max CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_highest,cst_metadata,question_aware_dinov2_vits14,metadata (frozen v1 key: max CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_highest,cst_metadata,random_expected,metadata (frozen v1 key: max CST),55,3,3,1.0,0.0796,0.398,0.0796,0.2439,0.2347,mrr,n_eyes < 5
+cst_lowest,cst_metadata,latest_prior,metadata (frozen v1 key: min CST),55,3,3,1.0,0.2364,0.6727,0.2364,0.4171,0.4502,mrr,n_eyes < 5
+cst_lowest,cst_metadata,metadata_only,metadata (frozen v1 key: min CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_lowest,cst_metadata,image_resnet50,metadata (frozen v1 key: min CST),55,3,3,1.0,0.2,0.6364,0.2,0.3918,0.4161,mrr,n_eyes < 5
+cst_lowest,cst_metadata,safe_hybrid_resnet50,metadata (frozen v1 key: min CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_lowest,cst_metadata,question_aware_resnet50,metadata (frozen v1 key: min CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_lowest,cst_metadata,image_dinov2_vits14,metadata (frozen v1 key: min CST),55,3,3,1.0,0.1636,0.6364,0.1636,0.3867,0.4169,mrr,n_eyes < 5
+cst_lowest,cst_metadata,safe_hybrid_dinov2_vits14,metadata (frozen v1 key: min CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_lowest,cst_metadata,question_aware_dinov2_vits14,metadata (frozen v1 key: min CST),55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_lowest,cst_metadata,random_expected,metadata (frozen v1 key: min CST),55,3,3,1.0,0.0796,0.398,0.0796,0.2439,0.2347,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,latest_prior,metadata (frozen v1 key),55,3,3,1.0,0.2182,0.6273,0.2364,0.4115,0.4303,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,metadata_only,metadata (frozen v1 key),55,3,3,1.0,0.9515,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,image_resnet50,metadata (frozen v1 key),55,3,3,1.0,0.1364,0.6091,0.1455,0.3383,0.3693,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,safe_hybrid_resnet50,metadata (frozen v1 key),55,3,3,1.0,0.9515,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,question_aware_resnet50,metadata (frozen v1 key),55,3,3,1.0,0.9515,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,image_dinov2_vits14,metadata (frozen v1 key),55,3,3,1.0,0.0727,0.5303,0.0727,0.2649,0.2951,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,safe_hybrid_dinov2_vits14,metadata (frozen v1 key),55,3,3,1.0,0.9515,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,question_aware_dinov2_vits14,metadata (frozen v1 key),55,3,3,1.0,0.9515,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_most_similar,cst_metadata,random_expected,metadata (frozen v1 key),55,3,3,1.0,0.0796,0.398,0.0948,0.2604,0.2444,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,latest_prior,metadata (frozen v2 key),54,3,3,1.0,0.1111,0.537,0.1111,0.2973,0.3204,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,metadata_only,metadata (frozen v2 key),54,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,image_resnet50,metadata (frozen v2 key),54,3,3,1.0,0.0741,0.4815,0.0741,0.2605,0.2801,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,safe_hybrid_resnet50,metadata (frozen v2 key),54,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,question_aware_resnet50,metadata (frozen v2 key),54,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,image_dinov2_vits14,metadata (frozen v2 key),54,3,3,1.0,0.1111,0.3889,0.1111,0.2662,0.2494,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,safe_hybrid_dinov2_vits14,metadata (frozen v2 key),54,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,question_aware_dinov2_vits14,metadata (frozen v2 key),54,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_largest_rise,cst_metadata,random_expected,metadata (frozen v2 key),54,3,3,1.0,0.078,0.3899,0.078,0.2409,0.2299,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,latest_prior,metadata (frozen v2 key),52,3,3,1.0,0.6346,0.9038,0.6346,0.7525,0.78,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,metadata_only,metadata (frozen v2 key),52,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,image_resnet50,metadata (frozen v2 key),52,3,3,1.0,0.25,0.6154,0.25,0.4321,0.4435,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,safe_hybrid_resnet50,metadata (frozen v2 key),52,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,question_aware_resnet50,metadata (frozen v2 key),52,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,image_dinov2_vits14,metadata (frozen v2 key),52,3,3,1.0,0.0962,0.6154,0.0962,0.3185,0.3604,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,safe_hybrid_dinov2_vits14,metadata (frozen v2 key),52,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,question_aware_dinov2_vits14,metadata (frozen v2 key),52,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+cst_last_above_today,cst_metadata,random_expected,metadata (frozen v2 key),52,3,3,1.0,0.0806,0.4032,0.0806,0.246,0.2377,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,latest_prior,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,0.0545,0.2,0.0545,0.1742,0.1254,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,metadata_only,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,image_resnet50,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,0.0727,0.2545,0.0727,0.1993,0.1637,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,safe_hybrid_resnet50,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,question_aware_resnet50,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,image_dinov2_vits14,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,0.0182,0.3091,0.0182,0.1739,0.1553,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,safe_hybrid_dinov2_vits14,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,question_aware_dinov2_vits14,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,1.0,1.0,1.0,1.0,1.0,mrr,n_eyes < 5
+edema_worst_proxy,pathology_proxy,random_expected,"metadata (frozen v1 'worst_edema' key = max CST; Phase 1 operationalisation, NOT a clinical edema grade)",55,3,3,1.0,0.0796,0.398,0.0796,0.2439,0.2347,mrr,n_eyes < 5
+image_similarity_B1,image_similarity,image_dinov2_vits14,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.1144,0.6103,0.5,0.6782,0.6824,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,image_resnet50,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.2149,0.6558,0.7778,0.8565,0.8023,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,latest_prior,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.2208,0.6667,0.6111,0.7725,0.7857,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,metadata_cst_proxy,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.1829,0.6942,0.6667,0.7764,0.7815,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,metadata_only,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,0.0,0.0,0.0,0.0,0.0,0.0,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,question_aware_dinov2_vits14,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.0894,0.6945,0.3889,0.6426,0.7252,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,question_aware_resnet50,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.2704,0.7026,0.7778,0.8565,0.823,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,safe_hybrid_dinov2_vits14,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.0894,0.6945,0.3889,0.6426,0.7252,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,safe_hybrid_resnet50,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.2704,0.7026,0.7778,0.8565,0.823,ndcg5,n_eyes < 5
+image_similarity_B1,image_similarity,random_expected,"human (B1, single researcher_non_expert annotator; visual similarity only)",18,3,3,1.0,0.0859,0.4295,0.3355,0.5288,0.5718,ndcg5,n_eyes < 5
