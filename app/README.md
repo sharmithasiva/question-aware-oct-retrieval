@@ -14,7 +14,10 @@ question ──► Assistant.route ─┬─ history ─────────
                         evidence package (answer.build_unified_evidence: rows, images, labels, disclosures)
                                        │ abstained? ──► abstention text, no model call
                                        ▼
-                 backend: evidence-only │ OpenAI-compatible VLM (OpenRouter / Ollama / vLLM) │ Claude
+                                       │ needs visual interpretation? no ──► deterministic answer, no model call
+                                       ▼
+                 backend: evidence-only │ Ollama / OpenAI-compatible VLM (OpenRouter, vLLM) │ Claude
+                 (only the scans the question needs, downscaled, within the context budget)
                                        ▼
                  grounding check (visit IDs, CST/BCVA values, "Evidence used:" line) ──► answer + evidence panel
 ```
@@ -25,7 +28,7 @@ question ──► Assistant.route ─┬─ history ─────────
 | "When was the edema worst?" | `edema_proxy` | CST used as a proxy; disclosed every time (CST does not measure edema) |
 | "Which earlier visit's OCT looks most like today's?" | `image_similarity` | ResNet-50 cosine fused with CST closeness (RRF); similarity ≠ clinical similarity |
 | "When was the retinal anatomy best?" | `anatomy_proxy` | lowest CST, disclosed as a proxy (no anatomy grade exists) |
-| "How has the retina changed since baseline?" | `trajectory` | baseline + previous visit, recorded CST deltas, images |
+| "How has the retina changed over time?" | `trajectory` | baseline + previous visit, recorded CST deltas, images |
 | "When did IRF first appear?" | `pathology` | OLIVES labels exist only for first/last visit → abstains (`insufficient_labels`) |
 | "What abnormalities are visible in this scan?" | `scan_visual` | the VLM's visual observation, labelled as such, next to dataset labels |
 | Upload + "which visit looks most like this scan?" | `upload_similarity` | cosine vs the selected eye's embedded visits |
@@ -60,15 +63,37 @@ Edit `.env` and choose a provider (see below). Real environment variables overri
 * **Ollama, local and free (recommended for the 8 GB RTX 5050)**: install Ollama ≥ 0.7, then
 
   ```powershell
-  ollama pull qwen2.5vl:7b
+  ollama pull qwen2.5vl:3b
   ```
 
-  (about 6 GB; `qwen2.5vl:3b`, about 3.2 GB, if memory is tight). Set `OCT_VLM_PROVIDER=openai_compatible`,
-  `OCT_VLM_BASE_URL=http://localhost:11434/v1`, `OCT_VLM_MODEL=qwen2.5vl:7b`. No key, works offline.
+  (about 3.2 GB; `qwen2.5vl:7b`, about 6 GB, for better descriptions). Set `OCT_VLM_PROVIDER=ollama`,
+  `OCT_VLM_BASE_URL=http://localhost:11434`, `OCT_VLM_MODEL=qwen2.5vl:3b`. No key, works offline. The native
+  provider sends `OCT_VLM_NUM_CTX` as Ollama's `num_ctx`; the OpenAI-compatible `/v1` endpoint cannot set it.
 * **OpenRouter, hosted**: `OCT_VLM_BASE_URL=https://openrouter.ai/api/v1` and `OPENROUTER_API_KEY`. Free `:free`
   models are limited to about 20 requests/min and 50 requests/day (1,000/day after buying ≥ $10 credits) and the
   list of free vision models changes, so check before a demo with `python -m app.check_vlm --list-only`.
 * **Claude** (`OCT_VLM_PROVIDER=anthropic`, `pip install anthropic`, `ANTHROPIC_API_KEY`): paid.
+
+### When the model is called, and how much it receives
+
+* **Metadata-only questions never call the model**, whatever provider is selected: CST/BCVA rules (highest,
+  largest increase, compared with today), the edema and anatomy CST proxies, finding-label questions and
+  image-similarity rankings ("which earlier visit looks most like today's?") are answered directly from the
+  retrieved evidence by the frozen rule (`model: deterministic` in the chat). The scans are still shown in the panel.
+* **Visual questions call the model** with only the scans they need, in this order: uploaded scan, today's scan,
+  retrieved visits best first, duplicates (identical files) removed. "What is visible in this scan?" → 1 scan;
+  "compare the current scan with the previous visit" or a similarity question that asks how scans *differ* → 2;
+  "how has the retina changed over time?" → today, baseline, previous (3). `OCT_VLM_MAX_IMAGES` caps this.
+* **Context budget.** Scans are converted to greyscale and downscaled to `OCT_VLM_IMAGE_MAX_SIDE` px (default
+  448; the atlas scans are 504 × 496, so retinal detail is barely reduced; never upscaled). The prompt size is
+  estimated conservatively (about one token per 14 × 14 pixels, three characters per text token). If the request
+  plus 256 answer tokens exceeds `OCT_VLM_CONTEXT` (default: `OCT_VLM_NUM_CTX`, else 4096 for Ollama), optional
+  scans are dropped first, then the scans are shrunk step by step down to `OCT_VLM_IMAGE_MIN_SIDE` (280); if it
+  still does not fit, the model is not called and the chat says why. The answer length is capped to what is left.
+* **Failures** (budget, rate limit, connection, context errors from the server) show a clear message, the
+  retrieved evidence as text, and the unchanged evidence panel. No answer is substituted.
+
+For 3 scans at full size on Ollama, raise the window: `OCT_VLM_NUM_CTX=8192` (uses more GPU memory).
 
 Check the configured model with one real B-scan (the key is never printed):
 

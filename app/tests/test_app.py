@@ -22,7 +22,7 @@ from oct_retrieval import intent_retrieval as R  # noqa: E402
 from app.assistant import Assistant  # noqa: E402
 from app.config import Config, load_config, read_dotenv  # noqa: E402
 from app.uploads import UploadError, validate_upload  # noqa: E402
-from app.vlm import AnthropicVLM, OpenAICompatibleVLM, VLMReply  # noqa: E402
+from app.vlm import AnthropicVLM, OllamaVLM, OpenAICompatibleVLM, VLMReply, make_vlm, prepare_image  # noqa: E402
 
 CST = [500, 450, 300, 405, 380, 420, 390, 400]
 EYE, TODAY = 901, "9901AOD_V8"
@@ -93,12 +93,12 @@ def evidence_text_sent(call):
 
 # --- the ten required scenarios --------------------------------------------------------------------------------------
 
-def test_1_cst_highest_is_metadata_with_no_images(parts, tmp_path):
-    vlm = FakeVLM()
-    t = make(parts, tmp_path, vlm).ask("When was CST highest for this eye?", EYE, TODAY, backend="vlm")
+def test_1_cst_highest_is_answered_by_the_frozen_rule_without_the_model(parts, tmp_path):
+    t = make(parts, tmp_path, NeverVLM()).ask("When was CST highest for this eye?", EYE, TODAY, backend="vlm")
     assert t.category == "metadata" and t.evidence["retrieved"][0]["visit_id"] == "9901AOD_V1"
-    assert not any(p["type"] == "image" for p in vlm.calls[0]["parts"])
-    assert "CST 500 µm" in evidence_text_sent(vlm.calls[0])
+    a = t.answer
+    assert a["status"] == "answered" and a["backend"] == "deterministic" and a["images_sent"] == []
+    assert "9901AOD_V1" in a["answer"] and "CST 500 µm" in a["answer"] and "no vision-language model" in a["answer"]
 
 
 def test_2_largest_increase_phrasing_uses_the_frozen_rule(parts, tmp_path):
@@ -110,21 +110,28 @@ def test_2_largest_increase_phrasing_uses_the_frozen_rule(parts, tmp_path):
     assert t.unified.final_ranking == [mem.visit_ids[i] for i in frozen.ranked]
 
 
-def test_3_worst_edema_discloses_cst_proxy_to_model_and_user(parts, tmp_path):
-    vlm = FakeVLM()
-    t = make(parts, tmp_path, vlm).ask("When was edema worst?", EYE, TODAY, backend="vlm")
-    assert t.category == "edema_proxy" and "not a clinical edema grade" in evidence_text_sent(vlm.calls[0])
-    assert "proxy" in vlm.calls[0]["system"] and t.evidence["images"]
+def test_3_worst_edema_discloses_cst_proxy_without_calling_the_model(parts, tmp_path):
+    t = make(parts, tmp_path, NeverVLM()).ask("When was edema worst?", EYE, TODAY, backend="vlm")
+    assert t.category == "edema_proxy" and t.answer["backend"] == "deterministic"
+    assert t.evidence["retrieved"][0]["visit_id"] == "9901AOD_V1"                     # highest CST (frozen rule)
+    assert "proxy for edema (not a clinical edema grade)" in t.answer["answer"]
+    assert any("not a clinical edema grade" in d for d in t.evidence["disclosures"])
+    assert t.evidence["images"]                                                       # scans still shown in the panel
 
 
-def test_4_similar_oct_sends_exactly_the_evidence_scans(parts, tmp_path):
-    vlm = FakeVLM()
-    t = make(parts, tmp_path, vlm).ask("Which previous visit has an OCT scan most similar to this one?", EYE, TODAY,
-                                       backend="vlm")
+def test_4_similar_oct_ranking_is_deterministic_and_a_visual_comparison_sends_two_scans(parts, tmp_path):
+    a = make(parts, tmp_path, NeverVLM())
+    t = a.ask("Which previous visit has an OCT scan most similar to this one?", EYE, TODAY, backend="vlm")
     assert t.category == "image_similarity" and t.evidence["route"] == "image+proxy_rrf"
-    want = [TODAY] + [r["visit_id"] for r in t.evidence["retrieved"]]
-    assert [lbl.split()[1] for lbl in image_labels(vlm.calls[0])] == want
-    assert sum(p["type"] == "image" for p in vlm.calls[0]["parts"]) == len(want)
+    assert t.answer["backend"] == "deterministic" and t.evidence["retrieved"][0]["visit_id"] in t.answer["answer"]
+    vlm = FakeVLM()
+    t2 = make(parts, tmp_path, vlm).ask("Which previous visit has an OCT scan most similar to this one, and how do "
+                                        "they differ?", EYE, TODAY, backend="vlm")
+    top = t2.evidence["retrieved"][0]["visit_id"]
+    assert t2.unified.final_ranking == t.unified.final_ranking                       # ranking unchanged
+    assert [lbl.split()[1] for lbl in image_labels(vlm.calls[0])] == [TODAY, top]
+    assert sum(p["type"] == "image" for p in vlm.calls[0]["parts"]) == 2 and t2.answer["images_sent"] == [TODAY, top]
+    assert "B-scan not sent" in evidence_text_sent(vlm.calls[0])                       # runner-ups: rows kept, no image
 
 
 def test_5_best_anatomy_is_a_disclosed_cst_proxy_with_scans(parts, tmp_path):
@@ -180,9 +187,10 @@ def test_10_api_failures_are_reported_not_answered(parts, tmp_path, exc, expect)
     def opener(req, timeout):
         raise exc
     vlm = OpenAICompatibleVLM("https://example.invalid/v1", "m", api_key=FAKE_KEY, opener=opener)
-    t = make(parts, tmp_path, vlm).ask("When was CST highest for this eye?", EYE, TODAY, backend="vlm")
+    t = make(parts, tmp_path, vlm).ask("Compare the current scan with the previous visit.", EYE, TODAY, backend="vlm")
     a = t.answer
-    assert a["status"] == "model_error" and expect in a["answer"] and "no answer was substituted" in a["answer"]
+    assert a["status"] == "model_error" and expect in a["answer"] and "no model answer was substituted" in a["answer"]
+    assert "Retrieved evidence without a model" in a["answer"] and "9901AOD_V7" in a["answer"]
     assert FAKE_KEY not in json.dumps(a) and "THISISNOTAREALKEY" not in repr(vlm)
     assert t.evidence["retrieved"]                                        # evidence still shown
 
@@ -191,13 +199,14 @@ def test_10_api_failures_are_reported_not_answered(parts, tmp_path, exc, expect)
 
 def test_vlm_receives_only_the_evidence_package(parts, tmp_path):
     vlm = FakeVLM()
-    t = make(parts, tmp_path, vlm).ask("Which visit had the best anatomy?", EYE, TODAY, backend="vlm")
-    assert vlm.calls[0]["parts"] == A.request_parts(t.evidence) and vlm.calls[0]["system"] == A.SYSTEM
+    t = make(parts, tmp_path, vlm).ask("Compare the current scan with the previous visit.", EYE, TODAY, backend="vlm")
+    assert vlm.calls[0]["parts"] == A.request_parts(A.vision_view(t.evidence, 3))
+    assert vlm.calls[0]["system"] == A.SYSTEM
 
 
 def test_grounding_flags_invented_visits(parts, tmp_path):
     vlm = FakeVLM("CST peaked at 9901AOD_V5 with 999 µm.\nEvidence used: 9901AOD_V5")
-    t = make(parts, tmp_path, vlm).ask("When was CST highest for this eye?", EYE, TODAY, backend="vlm")
+    t = make(parts, tmp_path, vlm).ask("Compare the current scan with the previous visit.", EYE, TODAY, backend="vlm")
     w = " ".join(t.answer["warnings"])
     assert "9901AOD_V5" in w and "999" in w
 
@@ -237,6 +246,143 @@ def test_upload_not_used_for_history_questions(parts, tmp_path):
     scan = validate_upload(png_bytes(np.full((100, 100), 50, np.uint8)), "u.png", tmp_path / "up")
     t = make(parts, tmp_path).ask("When was CST highest for this eye?", EYE, TODAY, upload=scan)
     assert t.route == "history" and "not used" in t.notes[0] and not t.evidence.get("upload")
+
+
+# --- metadata-only questions never reach a model; visual questions send only the scans they need ----------------------
+
+class NeverClaude:
+    beta = SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: (_ for _ in ()).throw(
+        AssertionError("Claude must not be called"))))
+
+
+@pytest.mark.parametrize("q,category", [
+    ("When was CST highest for this eye?", "metadata"),
+    ("Which visit had the largest increase in CST?", "metadata"),
+    ("When was edema worst?", "edema_proxy"),
+    ("Which visit had the best anatomy?", "anatomy_proxy"),
+    ("When was the CST most similar to today's measurement?", "metadata"),
+    ("Which previous visit has an OCT scan most similar to this one?", "image_similarity"),
+    ("Which earlier visit looks similar, and how did CST change?", "mixed"),
+])
+@pytest.mark.parametrize("backend", ["vlm", "claude"])
+def test_metadata_only_questions_do_not_invoke_the_model(parts, tmp_path, q, category, backend):
+    a = make(parts, tmp_path, NeverVLM())
+    t = a.ask(q, EYE, TODAY, backend=backend, client=NeverClaude())
+    ref = make(parts, tmp_path).ask(q, EYE, TODAY)                                  # evidence-only reference
+    assert t.category == category and t.answer["status"] == "answered" and t.answer["backend"] == "deterministic"
+    assert t.unified.final_ranking == ref.unified.final_ranking                      # retrieval unchanged
+    assert t.answer["answer"].split("(")[0] == ref.answer["answer"].split("(")[0]     # same frozen answer
+    assert "Evidence used:" in t.answer["answer"] and t.answer["images_sent"] == []
+
+
+@pytest.mark.parametrize("q,visits", [
+    ("Does this scan show signs of IRF or SRF?", [TODAY]),
+    ("What abnormalities are visible in this OCT scan?", [TODAY]),
+    ("Compare the current scan with the previous visit.", [TODAY, "9901AOD_V7"]),
+    ("How has the retina changed over time?", [TODAY, "9901AOD_V1", "9901AOD_V7"]),
+])
+def test_visual_questions_send_the_required_scans(parts, tmp_path, q, visits):
+    vlm = FakeVLM()
+    t = make(parts, tmp_path, vlm).ask(q, EYE, TODAY, backend="vlm")
+    assert len(vlm.calls) == 1 and t.answer["backend"] == "vlm"
+    assert [lbl.split()[1] for lbl in image_labels(vlm.calls[0])] == visits
+    assert sum(p["type"] == "image" for p in vlm.calls[0]["parts"]) == len(visits) == len(t.answer["images_sent"])
+
+
+def test_max_images_and_duplicate_scans_are_not_sent(parts, tmp_path):
+    ep, emb, images = parts
+    images["9901AOD_V1"].write_bytes(images[TODAY].read_bytes())                  # baseline scan file == today's
+    vlm = FakeVLM()
+    t = make(parts, tmp_path, vlm).ask("How has the retina changed over time?", EYE, TODAY, backend="vlm")
+    assert [lbl.split()[1] for lbl in image_labels(vlm.calls[0])] == [TODAY, "9901AOD_V7"]
+    vlm2 = FakeVLM()
+    a = make(parts, tmp_path, vlm2)
+    a.cfg.max_images = 1
+    a.ask("Compare the current scan with the previous visit.", EYE, TODAY, backend="vlm")
+    assert [lbl.split()[1] for lbl in image_labels(vlm2.calls[0])] == [TODAY]
+    assert "Not sent to the model: the B-scans of 9901AOD_V7" in evidence_text_sent(vlm2.calls[0])
+
+
+class Resp(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def big_scans(parts):
+    """Overwrite the fixture scans with distinct 504x496 images, the size of the dataset's atlas B-scans."""
+    rng = np.random.default_rng(0)
+    for p in parts[2].values():
+        Image.fromarray(rng.integers(0, 255, (496, 504), dtype=np.uint8)).save(p)
+
+
+def test_ollama_request_fits_the_context_budget_and_sets_num_ctx(parts, tmp_path):
+    big_scans(parts)
+    seen = []
+
+    def opener(req, timeout):
+        seen.append((req.full_url, json.loads(req.data)))
+        return Resp(json.dumps({"message": {"content": "Answer.\nEvidence used: 9901AOD_V8"},
+                                "done_reason": "stop", "prompt_eval_count": 1}).encode())
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434/v1", num_ctx=4096, max_tokens=1500)
+    assert isinstance(vlm, OllamaVLM) and vlm.context_tokens == 4096
+    vlm._open = opener
+    got, generate = [], vlm.generate
+    vlm.generate = lambda system, ps: got.append(ps) or generate(system, ps)
+    t = make(parts, tmp_path, vlm).ask("How has the retina changed over time?", EYE, TODAY, backend="vlm")
+    url, body = seen[0]
+    assert url == "http://localhost:11434/api/chat" and body["options"]["num_ctx"] == 4096
+    user = body["messages"][1]
+    assert t.answer["status"] == "answered" and len(user["images"]) == len(t.answer["images_sent"]) >= 2
+    assert "Image 1: B-scan: 9901AOD_V8 (current visit)" in user["content"]
+    est = vlm.estimate_tokens(A.SYSTEM, got[0])                                   # the parts actually sent
+    assert body["options"]["num_predict"] >= A.MIN_OUTPUT_TOKENS
+    assert est + body["options"]["num_predict"] <= 4096                             # prompt + answer within budget
+    for b64 in user["images"]:
+        w, h = Image.open(io.BytesIO(__import__("base64").b64decode(b64))).size
+        assert max(w, h) <= 448 and w % 28 == 0 and h % 28 == 0
+
+
+def test_request_over_budget_is_not_sent_and_evidence_is_kept(parts, tmp_path):
+    big_scans(parts)
+    vlm = make_vlm("ollama", "qwen2.5vl:3b", "http://localhost:11434", context_tokens=1200)
+    vlm._open = lambda req, timeout: (_ for _ in ()).throw(AssertionError("must not be sent"))
+    t = make(parts, tmp_path, vlm).ask("Compare the current scan with the previous visit.", EYE, TODAY, backend="vlm")
+    a = t.answer
+    assert a["status"] == "model_error" and a["error"] == "context budget exceeded"
+    assert "the model was not called" in a["answer"] and "1200 tokens" in a["answer"]
+    assert "OCT_VLM_NUM_CTX" in a["answer"] and "Retrieved evidence without a model" in a["answer"]
+    assert t.evidence["retrieved"][0]["visit_id"] == "9901AOD_V7" and t.evidence["images"]
+
+
+def test_ollama_context_error_is_explained(parts, tmp_path):
+    body = b'{"error":"the input length exceeds the context length"}'
+    vlm = make_vlm("openai_compatible", "qwen2.5vl:3b", "http://localhost:11434/v1", context_tokens=0)
+    vlm._open = lambda req, timeout: (_ for _ in ()).throw(
+        urllib.error.HTTPError("u", 400, "Bad Request", {}, io.BytesIO(body)))
+    t = make(parts, tmp_path, vlm).ask("Does this scan show signs of IRF or SRF?", EYE, TODAY, backend="vlm")
+    assert t.answer["status"] == "model_error" and "context window" in t.answer["answer"]
+    assert "OCT_VLM_MAX_IMAGES" in t.answer["answer"]
+
+
+def test_image_preparation_downscales_without_upscaling(tmp_path):
+    p = tmp_path / "s.png"
+    Image.fromarray(np.zeros((496, 504), np.uint8)).save(p)
+    _, w, h = prepare_image(p, 448)
+    assert (w, h) == (420, 420) or (max(w, h) <= 448 and w % 28 == 0 and h % 28 == 0)
+    assert prepare_image(p, 1024)[1:] == (504, 496)
+    assert prepare_image(p, None, "jpeg")[0][:2] == b"\xff\xd8"
+
+
+def test_config_reads_context_budget_settings():
+    c = load_config(env={"OCT_VLM_PROVIDER": "ollama", "OCT_VLM_NUM_CTX": "8192", "OCT_VLM_MAX_IMAGES": "2",
+                         "OCT_VLM_IMAGE_MAX_SIDE": "392"}, dotenv=None)
+    assert (c.num_ctx, c.max_images, c.image_max_side, c.context_tokens) == (8192, 2, 392, None)
+    vlm = make_vlm(c.provider, "m", "", **c.vlm_options())
+    assert vlm.context_tokens == 8192 and vlm.num_ctx == 8192 and vlm.base_url == "http://localhost:11434"
+    assert make_vlm("openai_compatible", "m", "https://openrouter.ai/api/v1").context_tokens == 0
 
 
 # --- adapters, uploads, config ---------------------------------------------------------------------------------------

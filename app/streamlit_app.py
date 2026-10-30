@@ -65,8 +65,8 @@ def get_assistant() -> Assistant:
 
 
 @st.cache_resource
-def get_vlm(provider: str, model: str, base_url: str, key: str, timeout: float, max_tokens: int):
-    return make_vlm(provider, model, base_url, key, timeout, max_tokens)
+def get_vlm(provider: str, model: str, base_url: str, key: str, options: tuple):
+    return make_vlm(provider, model, base_url, key, **dict(options))
 
 
 def sidebar(a: Assistant):
@@ -103,11 +103,11 @@ def sidebar(a: Assistant):
                    names[0])
     preset = st.sidebar.selectbox("Provider", names, index=names.index(default))
     provider, url, model = PRESETS[preset]
-    if provider == cfg.provider:
+    if preset == default and provider == cfg.provider:       # the configured provider: use its URL and model
         url, model = cfg.base_url or url, cfg.model or model
     if provider != "evidence":
         model = st.sidebar.text_input("Model id", model)
-        if provider == "openai_compatible":
+        if provider in ("openai_compatible", "ollama"):
             url = st.sidebar.text_input("Base URL", url)
         key = cfg.api_key if provider == cfg.provider else ""
         typed = st.sidebar.text_input("API key (optional; kept in this session only)", type="password")
@@ -120,7 +120,11 @@ def sidebar(a: Assistant):
     vlm, backend = None, "evidence"
     if provider != "evidence":
         try:
-            vlm, backend = get_vlm(provider, model, url, key, cfg.timeout, cfg.max_tokens), "vlm"
+            vlm, backend = get_vlm(provider, model, url, key, tuple(sorted(cfg.vlm_options().items()))), "vlm"
+            budget = getattr(vlm, "context_tokens", 0)
+            st.sidebar.caption((f"Context budget: {budget} tokens" if budget else "Context budget: not enforced")
+                               + f"; at most {cfg.max_images} B-scans per request, downscaled to "
+                               f"{cfg.image_max_side} px. Metadata-only questions are answered without the model.")
         except ValueError as ex:
             st.sidebar.error(str(ex))
 
@@ -230,10 +234,13 @@ def render_evidence(a: Assistant, t: Turn):
                     unsafe_allow_html=True)
         for b in ev["biomarkers"]:
             st.markdown(f"- {A._fmt_labels(b)}")
-    if t.answer.get("backend") not in ("none", "evidence") and ev.get("images"):
+    if t.answer.get("backend") not in ("none", "evidence", "deterministic") and ev.get("images"):
         st.markdown(badge("model observation", "vlm") + "Statements about what is *visible* are the model's own, "
                     "unvalidated observations of single B-scans.", unsafe_allow_html=True)
-    with st.expander("Evidence text sent to the model"):
+        if t.answer.get("images_sent"):
+            st.caption("B-scans sent to the model: " + ", ".join(t.answer["images_sent"]))
+    with st.expander("Evidence text" + (" sent to the model" if t.answer.get("backend") in ("vlm", "claude")
+                                        else " (no model was called)")):
         st.code(A.evidence_text(ev), language=None)
     if u is not None and u.primary is not None:
         with st.expander("All eligible visits: metadata / image / final ranks"):

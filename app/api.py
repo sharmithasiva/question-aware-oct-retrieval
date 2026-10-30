@@ -33,7 +33,7 @@ app = FastAPI(title="Question-aware OCT assistant (research prototype)")
 @lru_cache(maxsize=1)
 def get_assistant() -> Assistant:
     cfg = load_config()
-    return Assistant(cfg, vlm=make_vlm(cfg.provider, cfg.model, cfg.base_url, cfg.api_key, cfg.timeout, cfg.max_tokens))
+    return Assistant(cfg, vlm=make_vlm(cfg.provider, cfg.model, cfg.base_url, cfg.api_key, **cfg.vlm_options()))
 
 
 def _clean(x):

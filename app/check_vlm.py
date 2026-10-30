@@ -25,14 +25,16 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     cfg = load_config()
     print(cfg)
-    vlm = make_vlm(cfg.provider, cfg.model, cfg.base_url, cfg.api_key, cfg.timeout, cfg.max_tokens)
+    vlm = make_vlm(cfg.provider, cfg.model, cfg.base_url, cfg.api_key, **cfg.vlm_options())
     if vlm is None:
         print("OCT_VLM_PROVIDER=evidence: no model to check.")
         return 0
+    print(f"{vlm!r}; context budget: {getattr(vlm, 'context_tokens', 0) or 'none'} tokens")
     if isinstance(vlm, OpenAICompatibleVLM):
         try:
             models = vlm.list_models()
-            vision = [m for m in models if "image" in (m.get("architecture") or {}).get("input_modalities", [])]
+            vision = [m for m in models if "image" in (m.get("architecture") or {}).get("input_modalities", [])
+                      or "vl" in m["id"].lower()]
             print(f"{len(models)} models listed; {len(vision)} declare image input"
                   + (" (the provider does not publish modalities)" if models and not vision else ""))
             for m in sorted(vision, key=lambda m: m["id"]):
@@ -47,7 +49,7 @@ def main(argv=None) -> int:
     img = next((ROOT / "phase2/data/atlas_fullhist/images").glob("*.webp"))
     reply = vlm.generate("You describe images briefly.", [dict(type="image", path=str(img)), dict(
         type="text", text="In one sentence: what kind of medical image is this?")])
-    print(f"finish={reply.finish}")
+    print(f"finish={reply.finish}" + (f"; usage={reply.usage}" if reply.usage else ""))
     print(reply.error if reply.finish == "error" else reply.text)
     return 0 if reply.finish in ("stop", "length") else 1
 

@@ -161,7 +161,8 @@ class Assistant:
             ev = self._scan_evidence(question, eye, visit, upload)
         else:
             ev = self._upload_similarity_evidence(question, eye, upload)
-        ans = A.answer(ev, backend, client=client, vlm=self.vlm)
+        ans = A.answer(ev, backend, client=client, vlm=self.vlm, vision_only=True,
+                       max_images=self.cfg.max_images)
         return Turn(question, route, ev, ans, eye, visit, upload=upload)
 
     # --- routes -----------------------------------------------------------------------------------------------------
@@ -171,7 +172,8 @@ class Assistant:
         ev = A.build_unified_evidence(u, self.episodes, self.images)
         if shown:
             ev["question"] = shown
-        ans = A.answer(ev, backend, client=client, vlm=self.vlm)
+        ans = A.answer(ev, backend, client=client, vlm=self.vlm, vision_only=True,
+                       max_images=self.cfg.max_images)
         return Turn(ev["question"], "history", ev, ans, eye, visit, unified=u)
 
     def _labels(self, eye: int, visit: str) -> list[dict]:
