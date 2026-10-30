@@ -9,7 +9,7 @@ structured evidence and the B-scans it must look at. Abstentions never reach a m
 ```
 question ──► Assistant.route ─┬─ history ──────────► question_router (frozen parse_intent + eligibility) ─┐
  (+ eye, visit,               ├─ scan_visual ──────► selected visit's B-scan or the uploaded scan ─────────┤
-  optional upload)            ├─ upload_similarity ► ResNet-50 cosine of the upload vs this eye's visits ──┤
+  optional upload)            ├─ upload_similarity ► ResNet-50 cosine vs this eye's individual B-scans ───┤
                               └─ followup ─────────► re-shows the previous turn's evidence                 │
                                                                                                            ▼
                  evidence package: same-eye earlier visits, CST/BCVA, OLIVES labels, scans, disclosures
@@ -34,11 +34,22 @@ question ──► Assistant.route ─┬─ history ─────────
 | "Which earlier visit's OCT looks most like today's?" | visual + metadata | today's scan + the top embedding candidates (cosine ≠ clinical similarity) |
 | "Which earlier visit looks similar, and how did CST change?" | visual + metadata | scans + the exact CST change |
 | "What abnormalities are visible in this scan?" | visual | that one scan (+ dataset labels when the visit is labelled) |
-| Upload + "what is visible?" / "which visit looks like it?" | visual | the uploaded scan (external), or it + this eye's top candidates |
+| Upload + "what is visible?" | visual | the uploaded scan (external) |
+| Upload + "which previous visit looks most like this scan?" | visual | the upload + the best-matching stored B-scan of each top visit; ranking fixed by embeddings |
 | "When did IRF first appear?" | — | abstains: labels exist only for the first and last visit |
 
 Without a model (evidence-only mode) questions about recorded values list the computed evidence, and questions that
 need visual interpretation say that a vision-language model is needed: they are never answered from metadata alone.
+
+**Uploaded-scan similarity.** The upload is embedded with the same ResNet-50 function (`embed_cached.make_encoder
+("resnet50", "gap")`), decoding and preprocessing (`oct_image.load_gray` + `preprocess`: 224 × 224 bicubic, /255,
+ImageNet mean/std) and L2 normalisation as the stored embeddings, and compared with every **individual** stored
+B-scan (`OCT_EMBEDDINGS` holds one 2048-d vector per B-scan) of the selected eye's visits before the selected visit.
+Each visit is scored by its best-matching B-scan (that scan, its file and cosine are kept); visits are ranked by that
+score, ties to the more recent visit. Visit-level vectors (central or mean, `OCT_VISIT_MODE`) are not used for this.
+The model sees the upload and the top visits' best-matching scans and explains similarities and differences; it does
+not rank. If embedding fails, the chat shows the actual error (e.g. a failed weights download). To check the
+encoder on your machine: `$env:OCT_TEST_RESNET="1"; python -m pytest -q app\tests -k real_resnet50`.
 
 Uploaded images are **external**: they are never linked to a patient, eye, visit or date unless they are byte- or
 pixel-identical to a dataset B-scan (then the answer says which visit it matched). The dataset has no calendar

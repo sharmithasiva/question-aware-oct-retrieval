@@ -37,7 +37,7 @@ from question_eval import recency_order  # noqa: E402
 
 from app.config import Config  # noqa: E402
 from app import reasoning as RS  # noqa: E402
-from app.uploads import DatasetImageIndex, UploadedScan, embed_scan  # noqa: E402
+from app.uploads import DatasetImageIndex, ScanIndex, UploadedScan, embed_scan  # noqa: E402
 
 FINDING_STEMS = ("fluid_irf", "fluid_srf", "drt_me", "ir_hrf", "dril", "disruption_of_ez", "disruption_of_rpe",
                  "ped_serous", "atrophy_thinning_of_retinal_layers", "vmt", "shrm")
@@ -67,8 +67,9 @@ class Turn:
 
 class Assistant:
     def __init__(self, cfg: Config, vlm=None, upload_encoder=None, episodes: pd.DataFrame | None = None,
-                 visit_emb: dict | None = None, images: dict | None = None, emb_encoder: str | None = None):
-        """Normally built from `cfg`; tests pass episodes / visit_emb / images directly."""
+                 visit_emb: dict | None = None, images: dict | None = None, emb_encoder: str | None = None,
+                 scans: ScanIndex | None = None):
+        """Normally built from `cfg`; tests pass episodes / visit_emb / images (/ scans) directly."""
         self.cfg, self.vlm = cfg, vlm
         self._encoder = upload_encoder
         if episodes is None:
@@ -78,11 +79,20 @@ class Assistant:
             images = {r.visit_id: cfg.subset / r.local_path for r in c.itertuples() if (cfg.subset / r.local_path).exists()}
             visit_emb = H.load_visit_embeddings(cfg.subset, cfg.embeddings, mode=cfg.visit_mode)
             emb_encoder = str(np.load(cfg.embeddings, allow_pickle=False)["encoder"])
+            scans = ScanIndex.load(cfg.subset, cfg.embeddings)
         self.episodes, self.images, self.visit_emb = episodes, images or {}, visit_emb or {}
         self.emb_encoder = emb_encoder
         self.router = QR.QuestionAwareRetriever(episodes, self.visit_emb)
         self.ep = episodes.set_index("visit_id")
         self._index = None
+        if scans is None:                    # tests without a scan index: one stored vector per visit
+            vids = [v for v in self.visit_emb if v in self.ep.index]
+            scans = ScanIndex(keys=[f"{v}__scan24" for v in vids], visit_ids=vids,
+                              eye_ids=[int(self.ep.loc[v, "eye_id"]) for v in vids], scan_index=[24] * len(vids),
+                              paths=[self.images.get(v) for v in vids],
+                              emb=np.stack([self.visit_emb[v] for v in vids]) if vids else np.zeros((0, 1)),
+                              encoder=emb_encoder or "resnet50")
+        self.scans = scans
 
     # --- dataset browsing -------------------------------------------------------------------------------------------
 
@@ -115,11 +125,14 @@ class Assistant:
         if self._encoder is None:
             if not self.cfg.upload_embedding:
                 raise RuntimeError("upload embedding is disabled (OCT_UPLOAD_EMBEDDING=0)")
-            if self.emb_encoder != "resnet50" or self.cfg.visit_mode != "central":
-                raise RuntimeError(f"stored embeddings are '{self.emb_encoder}' ({self.cfg.visit_mode}); upload "
-                                   "comparison needs ResNet-50 central-scan embeddings")
-            import embed_cached as EC
-            self._encoder, _ = EC.make_encoder("resnet50", "gap", OI.pick_device())
+            if (self.scans.encoder, self.scans.pooling) != ("resnet50", "gap"):
+                raise RuntimeError(f"the stored B-scan embeddings were made with {self.scans.encoder} "
+                                   f"({self.scans.pooling} pooling); uploads are embedded with ResNet-50 (gap) only, so "
+                                   f"they cannot be compared. Point OCT_EMBEDDINGS at a resnet50 embeddings.npz")
+            import embed_cached as EC                      # the function that produced the stored embeddings
+            self._encoder, dim = EC.make_encoder("resnet50", "gap", OI.pick_device())
+            if dim != self.scans.dim:
+                raise RuntimeError(f"ResNet-50 gives {dim}-d embeddings but the stored ones are {self.scans.dim}-d")
         return self._encoder
 
     # --- routing ----------------------------------------------------------------------------------------------------
@@ -163,7 +176,7 @@ class Assistant:
         if route == "scan_visual":
             ev = self._scan_evidence(question, eye, visit, upload)
         else:
-            ev = self._upload_similarity_evidence(question, eye, upload)
+            ev = self._upload_similarity_evidence(question, eye, visit, upload)
         ans = self._answer(ev, backend, client)
         return Turn(question, route, ev, ans, eye, visit, upload=upload)
 
@@ -232,44 +245,66 @@ class Assistant:
                                      else " No dataset finding labels exist for this scan."))
         return ev
 
-    def _upload_similarity_evidence(self, question, eye, upload) -> dict:
+    def _upload_similarity_evidence(self, question, eye, visit, upload) -> dict:
+        """Upload vs the stored INDIVIDUAL B-scan embeddings of the selected eye's eligible visits (strictly before the
+        selected visit; all of the eye's visits when none is selected). Per visit the best-matching scan and its
+        cosine are kept; visits are ranked by that maximum. The model later compares the scans but never ranks."""
         ev = self._base_ev(question, "upload_similarity", "upload_image_similarity", eye)
         ev["upload"] = dict(visit_id="UPLOADED_SCAN", image_attached=True, matched_visit=None, matched_eye=None)
         if eye is None:
             ev.update(status="insufficient_data", reason="select the eye to compare the uploaded scan with",
                       uses_images=False)
             return ev
-        cands = [v for v in self.visits(eye).visit_id if v in self.visit_emb]
+        vis = self.visits(eye)
+        if visit is not None and visit in set(vis.visit_id):
+            vis = vis[vis.visit_index < int(vis.set_index("visit_id").loc[visit, "visit_index"])]
+            ev["current"] = A._visit_row(self.ep, visit)
+            ev["current"]["image_attached"] = False
+        cands = list(vis.visit_id)
         try:
             q = embed_scan(upload, self._upload_encoder())
-        except Exception as ex:
+        except Exception as ex:                       # report the real reason (missing torch, weights download, ...)
             ev.update(status="unsupported_image", uses_images=False, guidance=A.ABSTENTION_GUIDANCE["unsupported_image"],
-                      reason=f"the uploaded scan could not be embedded ({A.redact(ex)})")
+                      reason=f"the uploaded scan could not be embedded: {type(ex).__name__}: {A.redact(ex)}")
             return ev
-        if not cands:
-            ev.update(status="unsupported_image", uses_images=False, reason=f"eye {eye} has no embedded OCT visits")
+        try:
+            ranked = self.scans.rank_visits(q, eye, cands)
+        except ValueError as ex:
+            ev.update(status="unsupported_image", uses_images=False, reason=f"embedding mismatch: {ex}")
             return ev
-        scores = {v: float(self.visit_emb[v] @ q) for v in cands}
-        ranking = recency_order(scores, {v: i for i, v in enumerate(cands)})
-        for rank, v in enumerate(ranking[:A.TOP_N], 1):
-            row = A._visit_row(self.ep, v)
+        if not ranked:
+            ev.update(status="insufficient_data", uses_images=False,
+                      reason=f"eye {eye} has no stored B-scan embeddings for the {len(cands)} eligible visits"
+                             + (f" before {visit}" if visit else ""))
+            return ev
+        for rank, b in enumerate(ranked[:A.TOP_N], 1):
+            row = A._visit_row(self.ep, b["visit_id"])
+            path = b["path"] if b["path"] is not None and Path(b["path"]).exists() else None
             row.update(rank=rank, role="selected" if rank == 1 else "runner-up", sources=[f"upload_similarity #{rank}"],
-                       image_cosine=round(scores[v], 4), image_attached=v in self.images)
+                       image_cosine=round(b["score"], 4), image_attached=path is not None, best_scan=b["image_key"],
+                       best_scan_file=None if path is None else Path(path).name, best_scan_index=b["scan_index"],
+                       best_scan_path=None if path is None else str(path), n_scans_compared=b["n_scans"])
             ev["retrieved"].append(row)
         ev["images"] = [dict(visit_id="UPLOADED_SCAN", role="uploaded", path=str(upload.path))] + [
-            dict(visit_id=r["visit_id"], role="retrieved", path=str(self.images[r["visit_id"]]))
+            dict(visit_id=r["visit_id"], role="retrieved", path=r["best_scan_path"], scan=r["best_scan"])
             for r in ev["retrieved"] if r["image_attached"]]
-        ev["n_candidates"], ev["eligible"] = len(cands), list(cands)
-        ev["ranking"] = ranking
-        ev["ranking_basis"] = (f"The uploaded scan was embedded with the stored embeddings' encoder (ResNet-50, same "
-                               f"preprocessing) and compared by cosine with the central B-scans of all {len(cands)} "
-                               f"embedded visits of eye {eye}.")
+        n_scans = sum(b["n_scans"] for b in ranked)
+        ev["n_candidates"] = len(ranked)
+        ev["eligible"] = [v for v in cands if v in {b["visit_id"] for b in ranked}]
+        ev["ranking"] = [b["visit_id"] for b in ranked]
+        ev["ranking_basis"] = (f"The uploaded scan was embedded with the same ResNet-50 (global average pooling, "
+                               f"{self.scans.dim}-d) and preprocessing as the stored embeddings and compared by cosine "
+                               f"with {n_scans} individual stored B-scans of the {len(ranked)} eligible visits of eye "
+                               f"{eye}; each visit is scored by its best-matching B-scan.")
         ev["components"] = [dict(name="upload_image_similarity", status="retrieved", explanation=ev["ranking_basis"])]
+        missing = [r["visit_id"] for r in ev["retrieved"] if not r["image_attached"]]
         ev["disclosures"] += [
-            "The uploaded scan is external: it has no date, so all of this eye's visits are candidates, and the "
-            "ranking does not show that the scan belongs to this eye.",
+            "The uploaded scan is external: it has no date, and the ranking does not show that it belongs to this eye.",
             "Image-embedding similarity (generic ImageNet encoder) is not clinical similarity and says nothing about "
-            "disease progression."]
+            "disease progression. The ranking is fixed by the embeddings; the model only compares the scans."]
+        if missing:
+            ev["disclosures"].append(f"The best-matching B-scan image file is not available locally for "
+                                     f"{', '.join(missing)} (its stored embedding was used for ranking).")
         if upload.warnings:
             ev["disclosures"].append("Upload warnings: " + "; ".join(upload.warnings))
         return ev

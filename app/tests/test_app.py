@@ -4,6 +4,7 @@ Synthetic eye 901: 8 visits, CST 500 450 300 405 380 420 390 400 (today = V8); f
 """
 import io
 import json
+import os
 import sys
 import urllib.error
 from pathlib import Path
@@ -16,13 +17,14 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 import answer as A  # noqa: E402
+import oct_image as OI  # noqa: E402
 from oct_retrieval import intent as I  # noqa: E402
 from oct_retrieval import intent_retrieval as R  # noqa: E402
 
 from app import reasoning as RS  # noqa: E402
 from app.assistant import Assistant  # noqa: E402
 from app.config import Config, load_config, read_dotenv  # noqa: E402
-from app.uploads import UploadError, validate_upload  # noqa: E402
+from app.uploads import ScanIndex, UploadError, embed_scan, validate_upload  # noqa: E402
 from app.vlm import AnthropicVLM, OllamaVLM, OpenAICompatibleVLM, VLMReply, make_vlm, prepare_image  # noqa: E402
 
 CST = [500, 450, 300, 405, 380, 420, 390, 400]
@@ -94,7 +96,7 @@ def evidence_text_sent(call):
 
 def sent_visits(call):
     """Visit labels of the B-scans in a model call, in order (UPLOAD for the uploaded scan)."""
-    return ["UPLOAD" if lbl.startswith("B-scan: the uploaded scan") else lbl.rsplit("visit ", 1)[1]
+    return ["UPLOAD" if lbl.startswith("B-scan: the uploaded scan") else lbl.rsplit("visit ", 1)[1].split(" (")[0]
             for lbl in image_labels(call)]
 
 
@@ -214,9 +216,9 @@ def test_upload_compared_with_this_eyes_history(parts, tmp_path):
     t = a.ask("Which previous visit has an OCT scan most similar to this one?", EYE, TODAY, upload=scan, backend="vlm")
     ev = t.evidence
     assert t.route == "upload_similarity" and ev["retrieved"][0]["visit_id"] == "9901AOD_V3"
-    assert set(ev["eligible"]) == {v for v in ep[ep.eye_id == EYE].visit_id}      # same eye only
+    assert set(ev["eligible"]) == {f"9901AOD_V{i}" for i in range(1, 8)}       # same eye, before the selected visit
     assert sent_visits(vlm.calls[0]) == ["UPLOAD", "V3", ev["retrieved"][1]["visit_label"]]
-    assert "does not show that the scan belongs to this eye" in prompt_of(vlm.calls[0])
+    assert "does not show that it belongs to this eye" in prompt_of(vlm.calls[0])
 
 
 def test_irf_onset_with_incomplete_labels_abstains_without_model(parts, tmp_path):
@@ -402,6 +404,155 @@ def test_config_reads_context_budget_settings():
     assert vlm.context_tokens == 8192 and vlm.num_ctx == 8192 and vlm.base_url == "http://localhost:11434"
     assert make_vlm("openai_compatible", "m", "https://openrouter.ai/api/v1").context_tokens == 0
 
+
+
+# --- uploaded scan vs individual stored B-scans ------------------------------------------------------------------------
+
+def scan_index(parts, tmp_path, per_visit=3, seed=5):
+    """Several stored B-scans per visit for eyes 901 and 902, each with its own image file and unit vector."""
+    ep = parts[0]
+    rng = np.random.default_rng(seed)
+    keys, vids, eyes, idx, paths, emb = [], [], [], [], [], []
+    for r in ep.itertuples():
+        for k, si in enumerate([12, 24, 36][:per_visit]):
+            p = tmp_path / f"{r.visit_id}__scan{si}.png"
+            Image.fromarray(rng.integers(0, 255, (64, 64), dtype=np.uint8)).save(p)
+            x = rng.normal(size=16)
+            keys.append(f"{r.visit_id}__scan{si}"); vids.append(r.visit_id); eyes.append(int(r.eye_id))
+            idx.append(si); paths.append(p); emb.append(x / np.linalg.norm(x))
+    return ScanIndex(keys, vids, eyes, idx, paths, np.array(emb, np.float32))
+
+
+def make_scans(parts, tmp_path, scans, vlm=None, encoder=None):
+    ep, emb, images = parts
+    return Assistant(Config(workdir=tmp_path / "rt", visit_mode="mean"), vlm=vlm, upload_encoder=encoder, episodes=ep,
+                     visit_emb=emb, images=images, emb_encoder="resnet50", scans=scans)
+
+
+def upload(tmp_path, value=90):
+    return validate_upload(png_bytes(np.full((120, 120), value, np.uint8)), "u.png", tmp_path / "up")
+
+
+SIM_Q = "Which previous visit has an OCT scan most similar to this one?"
+
+
+def test_upload_is_ranked_against_individual_scans_with_the_best_scan_kept(parts, tmp_path):
+    scans = scan_index(parts, tmp_path)
+    i = scans.keys.index("9901AOD_V3__scan36")                        # a NON-central scan
+    q = scans.emb[i] + 0.05 * scans.emb[scans.keys.index("9901AOD_V5__scan12")]
+    t = make_scans(parts, tmp_path, scans, encoder=lambda x: q[None]).ask(SIM_Q, EYE, TODAY, upload=upload(tmp_path))
+    ev = t.evidence
+    assert ev["status"] == "retrieved" and t.route == "upload_similarity"
+    top = ev["retrieved"][0]
+    assert (top["visit_id"], top["best_scan"], top["best_scan_index"], top["n_scans_compared"]) == (
+        "9901AOD_V3", "9901AOD_V3__scan36", 36, 3)
+    zq = q / np.linalg.norm(q)
+    assert top["image_cosine"] == round(float(scans.emb[i] @ zq), 4)
+    assert top["best_scan_path"].endswith("9901AOD_V3__scan36.png") and top["best_scan_file"] == "9901AOD_V3__scan36.png"
+    assert "individual stored B-scans" in ev["ranking_basis"] and "21 individual" in ev["ranking_basis"]  # 7 visits x 3
+
+
+def test_visit_score_is_the_maximum_over_its_scans_and_ties_prefer_recent(tmp_path):
+    e = np.eye(4, dtype=np.float32)
+    s = ScanIndex(keys=["a1", "a2", "b1", "c1", "x1"], visit_ids=["A", "A", "B", "C", "X"], eye_ids=[1, 1, 1, 1, 2],
+                  scan_index=[12, 24, 24, 24, 24], paths=[None] * 5,
+                  emb=np.stack([e[0], e[1], e[1], e[2], e[1]]))
+    q = (0.6 * e[0] + 0.8 * e[1]).astype(np.float32)
+    r = s.rank_visits(q, 1, ["A", "B", "C"])
+    assert [(b["visit_id"], b["image_key"], round(b["score"], 3), b["n_scans"]) for b in r] == [
+        ("B", "b1", 0.8, 1), ("A", "a2", 0.8, 2), ("C", "c1", 0.0, 1)]          # A ties B at 0.8: B is more recent
+    assert all(b["visit_id"] != "X" for b in s.rank_visits(q, 1, ["A", "B", "C", "X"]))   # other eye never ranked
+    with pytest.raises(ValueError, match="dimensions"):
+        s.rank_visits(np.ones(8, np.float32), 1, ["A"])
+
+
+def test_upload_never_retrieves_another_eyes_scans(parts, tmp_path):
+    scans = scan_index(parts, tmp_path)
+    q = scans.emb[scans.keys.index("9902BOS_V2__scan24")]             # identical to a scan of ANOTHER eye
+    t = make_scans(parts, tmp_path, scans, encoder=lambda x: q[None]).ask(SIM_Q, EYE, TODAY, upload=upload(tmp_path))
+    assert all(r["visit_id"].startswith("9901AOD") for r in t.evidence["retrieved"])
+    assert all(v.startswith("9901AOD") for v in t.evidence["ranking"])
+    assert all(r["visit_index"] < 7 for r in t.evidence["retrieved"])               # before the selected V8
+
+
+def test_mean_visit_mode_no_longer_blocks_uploads_and_mean_vectors_are_not_used(parts, tmp_path):
+    scans = scan_index(parts, tmp_path)
+    ep, emb, images = parts
+    bogus = {v: -x for v, x in emb.items()}                             # visit-level vectors that would rank inversely
+    a = Assistant(Config(workdir=tmp_path / "rt", visit_mode="mean"), upload_encoder=lambda x: scans.emb[3][None],
+                  episodes=ep, visit_emb=bogus, images=images, emb_encoder="resnet50", scans=scans)
+    t = a.ask(SIM_Q, EYE, TODAY, upload=upload(tmp_path))
+    assert t.evidence["status"] == "retrieved" and t.evidence["retrieved"][0]["best_scan"] == scans.keys[3]
+
+
+def test_embedding_failure_shows_the_real_reason(parts, tmp_path):
+    def broken(x):
+        raise OSError("could not download resnet50 weights from download.pytorch.org")
+    t = make_scans(parts, tmp_path, scan_index(parts, tmp_path), encoder=broken).ask(SIM_Q, EYE, TODAY,
+                                                                                    upload=upload(tmp_path))
+    assert t.evidence["status"] == "unsupported_image"
+    assert "OSError: could not download resnet50 weights" in t.evidence["reason"]
+    assert "central-scan" not in t.evidence["reason"]
+    t2 = make_scans(parts, tmp_path, scan_index(parts, tmp_path), encoder=lambda x: np.ones((1, 8))).ask(
+        SIM_Q, EYE, TODAY, upload=upload(tmp_path))
+    assert "embedding mismatch" in t2.evidence["reason"] and "8 dimensions" in t2.evidence["reason"]
+
+
+def test_non_resnet_scan_embeddings_are_reported_precisely(parts, tmp_path):
+    scans = scan_index(parts, tmp_path)
+    scans.encoder = "retfound_oct"
+    a = make_scans(parts, tmp_path, scans)
+    a.cfg.upload_embedding = True
+    t = a.ask(SIM_Q, EYE, TODAY, upload=upload(tmp_path))
+    assert "made with retfound_oct" in t.evidence["reason"]
+
+
+def test_upload_embedding_uses_the_stored_pipeline_preprocessing(tmp_path):
+    seen = []
+    img = (np.arange(496 * 504).reshape(496, 504) % 251).astype(np.uint8)
+    scan = validate_upload(png_bytes(img), "s.png", tmp_path)
+    v = embed_scan(scan, lambda x: seen.append(x) or np.ones((1, 2048), np.float32) * 3)
+    gray, _ = OI.load_gray(scan.path)
+    assert seen[0].shape == (1, 3, 224, 224) and np.array_equal(seen[0][0], OI.preprocess(gray)[1])
+    assert v.shape == (2048,) and abs(np.linalg.norm(v) - 1) < 1e-6
+
+
+def test_real_resnet50_upload_matches_the_stored_embedding_of_the_same_scan():
+    """Compatibility on real data: a dataset B-scan uploaded as PNG embeds to (almost) its stored vector."""
+    if os.environ.get("OCT_TEST_RESNET") != "1":
+        pytest.skip("set OCT_TEST_RESNET=1 (needs torch and the ImageNet ResNet-50 weights)")
+    import embed_cached as EC
+    subset, embf = ROOT / "phase2/data/atlas_fullhist", ROOT / "phase2/results/fullhist/resnet50/embeddings.npz"
+    scans = ScanIndex.load(subset, embf)
+    enc, dim = EC.make_encoder("resnet50", "gap", OI.pick_device())
+    assert dim == scans.dim == 2048 and (scans.encoder, scans.pooling) == ("resnet50", "gap")
+    i = 5
+    gray = np.asarray(Image.open(scans.paths[i]).convert("L"))
+    q = embed_scan(validate_upload(png_bytes(gray), "x.png", ROOT / "app/.runtime/test"), enc)
+    assert float(scans.emb[i] @ q) > 0.999
+    assert scans.rank_visits(q, scans.eye_ids[i], [scans.visit_ids[i]])[0]["image_key"] == scans.keys[i]
+
+
+def test_vlm_compares_the_upload_with_the_best_matching_scans_but_does_not_rank(parts, tmp_path):
+    scans = scan_index(parts, tmp_path)
+    q = scans.emb[scans.keys.index("9901AOD_V3__scan36")]
+    vlm = FakeVLM("Both scans may show a similar foveal contour; this is an uncertain visual reading.")
+    a = make_scans(parts, tmp_path, scans, vlm=vlm, encoder=lambda x: q[None])
+    t = a.ask(SIM_Q, EYE, TODAY, upload=upload(tmp_path), backend="vlm")
+    ref = make_scans(parts, tmp_path, scans, encoder=lambda x: q[None]).ask(SIM_Q, EYE, TODAY, upload=upload(tmp_path))
+    call = vlm.calls[0]
+    assert t.evidence["ranking"] == ref.evidence["ranking"]                         # the model does not rank
+    paths = [p["path"] for p in call["parts"] if p["type"] == "image"]
+    top2 = t.evidence["retrieved"][:2]
+    assert paths == [str(t.upload.path)] + [r["best_scan_path"] for r in top2]     # best scans, not central ones
+    assert image_labels(call)[1] == "B-scan: visit V3 (B-scan 36, its best match to the upload)"
+    prompt = prompt_of(call)
+    assert "Embedding ranking of this eye's eligible visits by their best-matching stored B-scan (fixed" in prompt
+    assert "V3 cosine 1.000 (B-scan 36 of 3 compared)" in prompt and not A.VISIT_ID_RE.search(prompt)
+    assert "the upload is not this visit's scan" in prompt and "today it is" not in prompt
+    prov = {p["visit_id"]: p for p in t.answer["provenance"]}
+    assert prov["9901AOD_V3"]["scan_file"] == "9901AOD_V3__scan36.png" and prov["9901AOD_V3"]["similarity"] == 1.0
+    assert prov["UPLOADED_SCAN"]["scan_sent"] and t.answer["answer"] == vlm.text
 
 # --- adapters, uploads, config ---------------------------------------------------------------------------------------
 

@@ -115,7 +115,57 @@ class DatasetImageIndex:
 
 
 def embed_scan(scan: UploadedScan, encode) -> np.ndarray:
-    """L2-normalised embedding with the SAME preprocessing as the stored embeddings (oct_image.preprocess)."""
+    """L2-normalised embedding with the SAME decoding and preprocessing as the stored embeddings (oct_image.load_gray +
+    oct_image.preprocess: bicubic 224x224, /255, 3 channels, ImageNet mean/std) and the same encoder function."""
     gray, _ = OI.load_gray(scan.path)
     x = OI.preprocess(gray)[1][None]
     return OI.l2n(np.asarray(encode(x), dtype=np.float32))[0]
+
+
+# --- individual B-scan embeddings (for "which visit looks most like the uploaded scan?") -------------------------------
+
+@dataclass
+class ScanIndex:
+    """The stored per-B-scan embeddings (one row per image_key of embeddings.npz), L2-normalised, with each scan's
+    visit, eye, scan index and file. Visit-level vectors (central / mean) are NOT used for upload comparison."""
+    keys: list[str]
+    visit_ids: list[str]
+    eye_ids: list[int]
+    scan_index: list[int]
+    paths: list[Path | None]
+    emb: np.ndarray                      # (N, D) L2-normalised
+    encoder: str = "resnet50"
+    pooling: str = "gap"
+
+    @property
+    def dim(self) -> int:
+        return int(self.emb.shape[1])
+
+    @classmethod
+    def load(cls, subset: Path, emb_path: Path) -> "ScanIndex":
+        d = np.load(emb_path, allow_pickle=False)
+        keys = [str(k) for k in d["image_key"]]
+        m = OI.load_manifest(subset).set_index("image_key").loc[keys]
+        info = Path(emb_path).with_name("run_info.json")
+        pooling = json.loads(info.read_text()).get("pooling", "gap") if info.exists() else "gap"
+        paths = [(subset / p) if (subset / p).exists() else None for p in m.local_path]
+        return cls(keys, list(m.visit_id), [int(e) for e in m.eye_id], [int(s) for s in m.scan_index], paths,
+                   OI.l2n(np.asarray(d["embeddings"], dtype=np.float32)), str(d["encoder"]), pooling)
+
+    def rank_visits(self, q: np.ndarray, eye: int, visits: list[str]) -> list[dict]:
+        """Cosine of the upload with every stored B-scan of the given visits of `eye` (other eyes never considered),
+        aggregated per visit by the MAXIMUM over its scans; the best-matching scan is kept. Sorted best first, ties
+        broken towards the more recent visit (later in `visits`)."""
+        if q.shape[-1] != self.dim:
+            raise ValueError(f"upload embedding has {q.shape[-1]} dimensions, stored B-scan embeddings have {self.dim}")
+        order = {v: i for i, v in enumerate(visits)}
+        rows = [i for i, (v, e) in enumerate(zip(self.visit_ids, self.eye_ids)) if e == int(eye) and v in order]
+        sims = self.emb[rows] @ q if rows else np.zeros(0)
+        best: dict[str, dict] = {}
+        for i, s in zip(rows, sims.tolist()):
+            v = self.visit_ids[i]
+            b = best.setdefault(v, dict(visit_id=v, score=-np.inf, n_scans=0))
+            b["n_scans"] += 1
+            if s > b["score"]:
+                b.update(score=s, image_key=self.keys[i], scan_index=self.scan_index[i], path=self.paths[i])
+        return sorted(best.values(), key=lambda b: (-round(b["score"], 6), -order[b["visit_id"]]))

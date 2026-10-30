@@ -220,15 +220,25 @@ def render_evidence(a: Assistant, t: Turn):
         st.dataframe(pd.DataFrame([dict(rank=r["rank"], role=r["role"], selected_by=", ".join(r.get("sources", [])),
                                          visit=r["visit_id"], label=r["visit_label"], week=r["week"], cst_um=r["cst"],
                                          bcva=r["bcva"], image_cosine=r["image_cosine"],
-                                         scan_sent=r.get("image_attached", False)) for r in ev["retrieved"]]),
+                                         **({} if r.get("best_scan") is None else dict(
+                                             best_scan=r.get("best_scan_file") or r["best_scan"],
+                                             scans_compared=r.get("n_scans_compared"))),
+                                         scan_available=r.get("image_attached", False)) for r in ev["retrieved"]]),
                      hide_index=True, width="stretch")
     if t.eye is not None:
         st.markdown("#### CST timeline")
         cst_chart(a, t)
     sent = t.answer.get("images_sent") or []
     shown = sent or [im["visit_id"] for im in ev.get("images", [])]
-    if shown:
+    if ev.get("category") == "upload_similarity" and ev.get("retrieved"):
+        shown = ["UPLOADED_SCAN"] + [r["visit_id"] for r in ev["retrieved"] if r.get("image_attached")]
+        st.markdown("#### Uploaded scan and the best-matching historical B-scans")
+        st.caption("Ranked by ResNet-50 embedding cosine over individual B-scans (best scan per visit). "
+                   + ("Scans sent to the model for comparison: " + ", ".join(sent) if sent
+                      else "No model compared them."))
+    elif shown:
         st.markdown("#### OCT scans " + ("sent to the model" if sent else "of the evidence (no model call)"))
+    if shown:
         cols = st.columns(min(len(shown), 2))
         cos = {r["visit_id"]: r.get("image_cosine") for r in ev.get("retrieved", [])}
         for k, vid in enumerate(shown):
@@ -236,7 +246,9 @@ def render_evidence(a: Assistant, t: Turn):
             if path is None:
                 continue
             c = cos.get(vid)
-            cols[k % len(cols)].image(path, width="stretch", caption=vid + (f" · cosine {c:.3f}" if c is not None else ""))
+            name = "uploaded scan" if vid == "UPLOADED_SCAN" else vid
+            cols[k % len(cols)].image(path, width="stretch", caption=f"{name} · {Path(path).name}"
+                                      + (f" · cosine {c:.3f}" if c is not None else ""))
     if ev.get("biomarkers"):
         st.markdown(badge("dataset labels", "lab") + "**OLIVES finding labels** (first and last visit only)",
                     unsafe_allow_html=True)

@@ -191,6 +191,11 @@ def computed_facts(ev: dict, plan: Plan, ep: pd.DataFrame | None) -> list[str]:
     facts = []
     rows = ev.get("retrieved", [])
     cat = ev.get("category")
+    if cat == "upload_similarity":           # the upload has no CST/BCVA/date: only the fixed embedding ranking
+        return [f"Embedding ranking of this eye's eligible visits by their best-matching stored B-scan (fixed; not "
+                f"for you to change): " + ", ".join(f"{r['visit_label']} cosine {r['image_cosine']:.3f} (B-scan "
+                                                    f"{r.get('best_scan_index', '?')} of {r.get('n_scans_compared', '?')}"
+                                                    f" compared)" for r in rows) + "."] if rows else []
     if rows and cat == "metadata":
         top = rows[0]
         facts.append(f"Result of the retrieval rule for this question: visit {top['visit_label']} "
@@ -239,7 +244,10 @@ def image_caption(vid: str, ev: dict, labels: dict[str, str]) -> str:
         return "B-scan: the uploaded scan" + (f" (identical to the dataset scan of visit {labels.get(up['matched_visit'])})"
                                               if up.get("matched_visit") else " (external image)")
     cur = (ev.get("current") or {}).get("visit_id")
-    return f"B-scan: {'today, ' if vid == cur else ''}visit {labels.get(vid, '?')}"
+    row = next((r for r in ev.get("retrieved", []) if r["visit_id"] == vid), {})
+    scan = f" (B-scan {row['best_scan_index']}, its best match to the upload)" if row.get("best_scan_index") is not None \
+        and ev.get("category") == "upload_similarity" else ""
+    return f"B-scan: {'today, ' if vid == cur else ''}visit {labels.get(vid, '?')}{scan}"
 
 
 def evidence_prompt(ev: dict, plan: Plan, ep: pd.DataFrame | None, sent: list[str]) -> str:
@@ -251,7 +259,10 @@ def evidence_prompt(ev: dict, plan: Plan, ep: pd.DataFrame | None, sent: list[st
                                       if up.get("matched_visit") else
                                       "an external image, not linked to any patient, eye, visit or date"))
     cur = ev.get("current")
-    if cur:
+    if cur and ev.get("category") == "upload_similarity":
+        L.append(f"Selected visit of eye {ev['eye_id']}: {cur['visit_label']}. The uploaded scan was compared only "
+                 "with this eye's visits before it; the upload is not this visit's scan.")
+    elif cur:
         L.append(f"Today: visit {cur['visit_label']} of eye {ev['eye_id']}; recorded CST {_num(cur['cst'], 'µm')}, "
                  f"BCVA {_num(cur['bcva'], 'letters')}" + ("; B-scan attached" if cur["visit_id"] in sent else "")
                  + ". Only earlier visits of the same eye are eligible as history.")
@@ -264,6 +275,8 @@ def evidence_prompt(ev: dict, plan: Plan, ep: pd.DataFrame | None, sent: list[st
         L.append("Visits provided (in retrieval order):")
         for r in ev["retrieved"]:
             sim = "" if r.get("image_cosine") is None else f"; image-embedding cosine {r['image_cosine']:.3f}"
+            if r.get("best_scan_index") is not None:
+                sim += f" (best-matching B-scan {r['best_scan_index']} of {r['n_scans_compared']} compared)"
             img = "B-scan attached" if r["visit_id"] in sent else "no B-scan attached"
             L.append(f"  - visit {r['visit_label']} [{role or r['role']}]: CST {_num(r['cst'], 'µm')}, "
                      f"BCVA {_num(r['bcva'], 'letters')}{sim}; {img}")
@@ -300,9 +313,11 @@ def evidence_prompt(ev: dict, plan: Plan, ep: pd.DataFrame | None, sent: list[st
 
 
 def image_path(vid: str, ev: dict, images: dict[str, Path]) -> str | None:
+    """The scan the evidence names for a visit (e.g. its best-matching B-scan), else the visit's central scan."""
     if vid == UPLOAD:
         return next((im["path"] for im in ev.get("images", []) if im.get("role") == "uploaded"), None)
-    p = images.get(vid)
+    p = next((im["path"] for im in ev.get("images", []) if im["visit_id"] == vid and im.get("path")), None) \
+        or images.get(vid)
     return None if p is None else str(p)
 
 
@@ -389,17 +404,22 @@ def provenance(ev: dict, sent: list[str], ep) -> list[dict]:
     lab = {b["visit_id"]: A._fmt_labels(b).split(": ", 1)[1] for b in ev.get("biomarkers", [])}
     out = []
     if ev.get("upload"):
+        up = next((im["path"] for im in ev.get("images", []) if im.get("role") == "uploaded"), None)
         out.append(dict(visit_id=UPLOAD, visit_label="upload", role="uploaded scan", retrieved_by="user upload",
-                        cst=None, bcva=None, scan_sent=UPLOAD in sent, labels=None))
+                        similarity=None, scan_file=None if not up else Path(up).name, scan_path=up, cst=None,
+                        bcva=None, scan_sent=UPLOAD in sent, labels=None))
     if ev.get("current"):
         c = ev["current"]
         out.append(dict(visit_id=c["visit_id"], visit_label=c["visit_label"], role="today (query visit)",
                         retrieved_by="selected by the user", cst=c["cst"], bcva=c["bcva"],
                         scan_sent=c["visit_id"] in sent, labels=lab.get(c["visit_id"])))
+    paths = {im["visit_id"]: im.get("path") for im in ev.get("images", [])}
     for r in ev.get("retrieved", []):
+        path = r.get("best_scan_path") or paths.get(r["visit_id"])
         out.append(dict(visit_id=r["visit_id"], visit_label=r["visit_label"], role=r.get("role", ""),
-                        retrieved_by=", ".join(r.get("sources", [])), cst=r["cst"], bcva=r["bcva"],
-                        scan_sent=r["visit_id"] in sent, labels=lab.get(r["visit_id"])))
+                        retrieved_by=", ".join(r.get("sources", [])), similarity=r.get("image_cosine"),
+                        scan_file=None if not path else Path(path).name, scan_path=path, cst=r["cst"],
+                        bcva=r["bcva"], scan_sent=r["visit_id"] in sent, labels=lab.get(r["visit_id"])))
     return out
 
 
