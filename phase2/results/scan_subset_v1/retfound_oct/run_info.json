@@ -1,0 +1,30 @@
+{
+  "encoder": "retfound_oct",
+  "pooling": "patchmean",
+  "subset": "phase2/data/scan_subset_v1",
+  "n": 2940,
+  "dim": 1024,
+  "device": "cuda",
+  "weights": {
+    "file": "RETFound_mae_natureOCT.pth",
+    "sha256": "e9ff7864f40334885062953cb3894739d9fff52aaeb22c8b4f47d92270068d18"
+  },
+  "batch_size": 8,
+  "prep_version": "0aaa6f82c1",
+  "cache": "phase2\\cache\\retfound_oct__patchmean__prep0aaa6f82c1__we9ff7864f4",
+  "torch": "2.11.0+cu128",
+  "audit": {
+    "n_images": 2940,
+    "n_unique_sha256": 2935,
+    "n_cached_before": 0,
+    "n_embedded_now": 2935,
+    "modes": {
+      "RGB": 2935
+    },
+    "sizes": {
+      "504x496": 2935
+    },
+    "max_channel_diff": 1,
+    "seconds_embedding": 83.06
+  }
+}

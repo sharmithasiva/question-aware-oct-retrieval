@@ -1,0 +1,15 @@
+{
+  "source": "Retina OCT atlas (third-party index of OLIVES)",
+  "base_url": "https://retinaoct.com",
+  "api_version": "2",
+  "updated_utc": "2026-10-29T17:25:14+00:00",
+  "image_format": "WebP derivative (downsampled by the atlas; not the original TIFF/PNG)",
+  "dataset": "OLIVES (Prabhushankar et al., NeurIPS Datasets and Benchmarks 2022), CC BY 4.0, doi:10.5281/zenodo.7105232",
+  "plan": "plan.csv (phase2/build_scan_manifest.py)",
+  "local_reuse": [
+    "phase2\\data\\atlas_subset",
+    "phase2\\data\\atlas_fullhist"
+  ],
+  "verification": "as fetch_atlas_subset.check: atlas path == planned visit_images.csv file_path; eye, patient, laterality, visit label, subject, BCVA and CST equal episodes.csv",
+  "caveat": "Pixel content is as served by the atlas; not compared byte-for-byte with the Zenodo archive."
+}

@@ -1,0 +1,14 @@
+{
+  "created_utc": "2026-10-30T09:18:59+00:00",
+  "subset": "phase2\\data\\scan_subset_v1",
+  "embeddings": {
+    "retfound_oct": "phase2/results/scan_subset_v1/retfound_oct/embeddings.npz"
+  },
+  "min_pos": 10,
+  "seed": 20261030,
+  "n_boot": 2000,
+  "splits": {
+    "train": 37
+  },
+  "labels": "OLIVES_Dataset_Labels\\full_labels\\Biomarker_Clinical_Data_Images.csv"
+}

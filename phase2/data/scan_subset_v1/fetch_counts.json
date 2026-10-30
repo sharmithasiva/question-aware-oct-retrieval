@@ -1,0 +1,19 @@
+{
+  "planned": 4685,
+  "kept": 2940,
+  "rejected": 1745,
+  "not_attempted": 0,
+  "kept_by_source": {
+    "atlas_download": 2807,
+    "local_copy:atlas_subset": 72,
+    "local_copy:atlas_fullhist": 61
+  },
+  "rejected_by_reason": {
+    "error:search:HTTPError": 1742,
+    "error:HTTPError": 3
+  },
+  "duplicate_images": 5,
+  "kept_eyes": 37,
+  "kept_visits": 610,
+  "total_bytes": 159848810
+}
